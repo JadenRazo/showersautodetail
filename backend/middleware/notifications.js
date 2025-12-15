@@ -60,7 +60,9 @@ Email: ${data.customerEmail}
 Phone: ${data.customerPhone}
 Vehicle: ${data.vehicleType}
 Service Level: ${data.serviceLevel}
-Estimated Price: $${data.estimatedPrice}
+${data.selectedAddons?.length ? `Add-ons: ${data.selectedAddons.join(', ')}
+Add-on Total: $${data.addonTotal}
+` : ''}Estimated Total: $${data.estimatedPrice}
 Message: ${data.message || 'N/A'}
       `
     },

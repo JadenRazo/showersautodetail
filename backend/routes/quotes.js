@@ -16,7 +16,10 @@ router.post('/', quoteLimiter, quoteValidation, async (req, res) => {
       customerPhone,
       vehicleType,
       serviceLevel,
-      message
+      message,
+      selectedAddons,
+      addonTotal,
+      totalEstimate
     } = req.body;
 
     // Calculate estimated price based on service level
@@ -31,7 +34,7 @@ router.post('/', quoteLimiter, quoteValidation, async (req, res) => {
 
     const level = (serviceLevel || 'exterior').toLowerCase();
     const vehicle = vehicleType.toLowerCase();
-    const estimatedPrice = prices[level]?.[vehicle] || prices.exterior.sedan;
+    const estimatedPrice = totalEstimate || prices[level]?.[vehicle] || prices.exterior.sedan;
 
     // Insert quote request
     const result = await pool.query(
@@ -52,7 +55,9 @@ router.post('/', quoteLimiter, quoteValidation, async (req, res) => {
         vehicleType,
         serviceLevel,
         estimatedPrice,
-        message
+        message,
+        selectedAddons: selectedAddons || [],
+        addonTotal: addonTotal || 0
       }
     });
 

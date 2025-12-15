@@ -171,7 +171,10 @@ export default function QuoteCalculator() {
           customerPhone: formData.phone,
           vehicleType,
           serviceLevel,
-          message: formData.message
+          message: formData.message,
+          selectedAddons: availableAddons.filter(a => selectedAddons.includes(a.id)).map(a => a.name),
+          addonTotal,
+          totalEstimate: estimate
         })
       });
 
