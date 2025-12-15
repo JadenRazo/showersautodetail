@@ -1,0 +1,281 @@
+---
+import Layout from '../layouts/Layout.astro';
+---
+
+<Layout title="Complete Your Payment - Showers Auto Detail">
+  <div class="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100 py-8 px-4">
+    <div class="max-w-md mx-auto">
+      <!-- Logo/Brand -->
+      <div class="text-center mb-6">
+        <h1 class="text-2xl font-bold text-gray-900">Showers Auto Detail</h1>
+        <p class="text-gray-500 text-sm">Secure Payment</p>
+      </div>
+
+      <!-- Loading State -->
+      <div id="loading-state" class="bg-white rounded-2xl shadow-lg p-8 text-center">
+        <div class="animate-spin w-8 h-8 border-4 border-[#EB6C1D] border-t-transparent rounded-full mx-auto mb-4"></div>
+        <p class="text-gray-600">Loading your booking details...</p>
+      </div>
+
+      <!-- Error State (hidden by default) -->
+      <div id="error-state" class="bg-white rounded-2xl shadow-lg p-8 text-center hidden">
+        <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <svg class="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </div>
+        <h2 class="text-xl font-bold text-gray-900 mb-2">Link Invalid</h2>
+        <p id="error-message" class="text-gray-600">This payment link is not valid or has expired.</p>
+        <a href="/" class="inline-block mt-4 text-[#EB6C1D] font-medium hover:underline">Return to homepage</a>
+      </div>
+
+      <!-- Already Paid State (hidden by default) -->
+      <div id="paid-state" class="bg-white rounded-2xl shadow-lg p-8 text-center hidden">
+        <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <svg class="w-8 h-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+          </svg>
+        </div>
+        <h2 class="text-xl font-bold text-gray-900 mb-2">Already Paid</h2>
+        <p class="text-gray-600">The deposit for this booking has already been paid. Thank you!</p>
+        <a href="/" class="inline-block mt-4 text-[#EB6C1D] font-medium hover:underline">Return to homepage</a>
+      </div>
+
+      <!-- Payment Form (hidden by default) -->
+      <div id="payment-state" class="hidden">
+        <!-- Booking Summary Card -->
+        <div class="bg-white rounded-2xl shadow-lg p-6 mb-4">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-semibold text-gray-900">Booking Summary</h2>
+            <span class="px-3 py-1 bg-orange-100 text-[#EB6C1D] text-sm font-medium rounded-full">Deposit</span>
+          </div>
+
+          <div class="space-y-3 text-sm">
+            <div class="flex justify-between">
+              <span class="text-gray-500">Service</span>
+              <span id="service-name" class="font-medium text-gray-900">-</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-gray-500">Vehicle</span>
+              <span id="vehicle-type" class="font-medium text-gray-900 capitalize">-</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-gray-500">Date</span>
+              <span id="booking-date" class="font-medium text-gray-900">-</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-gray-500">Time</span>
+              <span id="booking-time" class="font-medium text-gray-900">-</span>
+            </div>
+            <hr class="border-gray-100">
+            <div class="flex justify-between text-gray-500">
+              <span>Total Service</span>
+              <span id="total-amount">-</span>
+            </div>
+            <div class="flex justify-between text-lg font-bold text-gray-900">
+              <span>Deposit Due</span>
+              <span id="deposit-amount" class="text-[#EB6C1D]">-</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Payment Card -->
+        <div class="bg-white rounded-2xl shadow-lg p-6">
+          <h3 class="text-lg font-semibold text-gray-900 mb-4">Payment Details</h3>
+
+          <div id="card-container" class="mb-4 p-3 border border-gray-200 rounded-lg bg-gray-50 min-h-[50px]"></div>
+
+          <button
+            id="pay-button"
+            type="button"
+            disabled
+            class="w-full bg-[#EB6C1D] hover:bg-[#D35E14] disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-semibold py-4 px-6 rounded-xl transition-colors text-lg"
+          >
+            Pay Deposit
+          </button>
+
+          <div id="payment-status" class="mt-4 p-4 rounded-lg hidden"></div>
+
+          <p class="text-center text-xs text-gray-400 mt-4">
+            <svg class="w-4 h-4 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+            </svg>
+            Secure payment processed by Square
+          </p>
+        </div>
+      </div>
+
+      <!-- Success State (hidden by default) -->
+      <div id="success-state" class="bg-white rounded-2xl shadow-lg p-8 text-center hidden">
+        <div class="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <svg class="w-10 h-10 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+          </svg>
+        </div>
+        <h2 class="text-2xl font-bold text-gray-900 mb-2">Payment Successful!</h2>
+        <p class="text-gray-600 mb-4">Your deposit has been received. We'll see you on your appointment date!</p>
+        <div id="success-details" class="text-left bg-gray-50 rounded-lg p-4 text-sm space-y-2 mb-4">
+          <div class="flex justify-between">
+            <span class="text-gray-500">Amount Paid</span>
+            <span id="paid-amount" class="font-medium">-</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-gray-500">Confirmation</span>
+            <span id="payment-id" class="font-mono text-xs">-</span>
+          </div>
+        </div>
+        <a href="/" class="inline-block text-[#EB6C1D] font-medium hover:underline">Return to homepage</a>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://web.squarecdn.com/v1/square.js"></script>
+  <script is:inline>
+    const SQUARE_APP_ID = 'sq0idp-RKJl6aCgvx1RRVzK7jIrQw';
+
+    let card = null;
+    let bookingId = null;
+    let bookingToken = null;
+    let depositAmount = 0;
+
+    // Parse URL params
+    const params = new URLSearchParams(window.location.search);
+    bookingId = params.get('id');
+    bookingToken = params.get('token');
+
+    // DOM elements
+    const loadingState = document.getElementById('loading-state');
+    const errorState = document.getElementById('error-state');
+    const paidState = document.getElementById('paid-state');
+    const paymentState = document.getElementById('payment-state');
+    const successState = document.getElementById('success-state');
+    const errorMessage = document.getElementById('error-message');
+    const payButton = document.getElementById('pay-button');
+    const statusDiv = document.getElementById('payment-status');
+
+    function showState(state) {
+      [loadingState, errorState, paidState, paymentState, successState].forEach(el => el.classList.add('hidden'));
+      state.classList.remove('hidden');
+    }
+
+    function showStatus(message, isError = false) {
+      statusDiv.textContent = message;
+      statusDiv.className = `mt-4 p-4 rounded-lg ${isError ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`;
+      statusDiv.classList.remove('hidden');
+    }
+
+    function formatDate(dateStr) {
+      const date = new Date(dateStr + 'T00:00:00');
+      return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+    }
+
+    function formatTime(timeStr) {
+      const [hours, minutes] = timeStr.split(':');
+      const hour = parseInt(hours);
+      const ampm = hour >= 12 ? 'PM' : 'AM';
+      const hour12 = hour % 12 || 12;
+      return `${hour12}:${minutes} ${ampm}`;
+    }
+
+    async function init() {
+      if (!bookingId || !bookingToken) {
+        errorMessage.textContent = 'Missing booking information in the link.';
+        showState(errorState);
+        return;
+      }
+
+      try {
+        // Fetch booking info
+        const response = await fetch(`/api/bookings/${bookingId}/payment-info?token=${bookingToken}`);
+
+        if (!response.ok) {
+          const data = await response.json();
+          errorMessage.textContent = data.error || 'This payment link is not valid.';
+          showState(errorState);
+          return;
+        }
+
+        const booking = await response.json();
+
+        // Check if already paid
+        if (booking.depositPaid) {
+          showState(paidState);
+          return;
+        }
+
+        // Populate booking details
+        document.getElementById('service-name').textContent = booking.serviceName || 'Detailing Service';
+        document.getElementById('vehicle-type').textContent = booking.vehicleType;
+        document.getElementById('booking-date').textContent = formatDate(booking.bookingDate);
+        document.getElementById('booking-time').textContent = formatTime(booking.bookingTime);
+        document.getElementById('total-amount').textContent = `$${booking.totalAmount.toFixed(2)}`;
+        document.getElementById('deposit-amount').textContent = `$${booking.depositAmount.toFixed(2)}`;
+
+        depositAmount = booking.depositAmount;
+        payButton.textContent = `Pay $${depositAmount.toFixed(2)} Deposit`;
+
+        // Initialize Square
+        const payments = window.Square.payments(SQUARE_APP_ID, 'production');
+        card = await payments.card();
+        await card.attach('#card-container');
+
+        payButton.disabled = false;
+        showState(paymentState);
+
+      } catch (err) {
+        console.error('Init error:', err);
+        errorMessage.textContent = 'Unable to load booking. Please try again.';
+        showState(errorState);
+      }
+    }
+
+    payButton.addEventListener('click', async () => {
+      if (!card) return;
+
+      payButton.disabled = true;
+      payButton.textContent = 'Processing...';
+      statusDiv.classList.add('hidden');
+
+      try {
+        const tokenResult = await card.tokenize();
+
+        if (tokenResult.status !== 'OK') {
+          showStatus(tokenResult.errors.map(e => e.message).join(', '), true);
+          payButton.disabled = false;
+          payButton.textContent = `Pay $${depositAmount.toFixed(2)} Deposit`;
+          return;
+        }
+
+        const response = await fetch('/api/payments/create-deposit-payment', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            bookingId: parseInt(bookingId),
+            sourceId: tokenResult.token
+          })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+          document.getElementById('paid-amount').textContent = `$${data.amount.toFixed(2)}`;
+          document.getElementById('payment-id').textContent = data.paymentId;
+          showState(successState);
+        } else {
+          showStatus(data.error + (data.details ? ': ' + data.details : ''), true);
+          payButton.disabled = false;
+          payButton.textContent = `Pay $${depositAmount.toFixed(2)} Deposit`;
+        }
+
+      } catch (err) {
+        console.error('Payment error:', err);
+        showStatus('Payment failed. Please try again.', true);
+        payButton.disabled = false;
+        payButton.textContent = `Pay $${depositAmount.toFixed(2)} Deposit`;
+      }
+    });
+
+    // Start
+    init();
+  </script>
+</Layout>

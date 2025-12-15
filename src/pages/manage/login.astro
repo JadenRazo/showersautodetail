@@ -1,0 +1,157 @@
+---
+import Layout from "../../layouts/Layout.astro";
+---
+
+<Layout title="Admin Login - Showers Auto Detail">
+  <div class="min-h-screen bg-gray-900 flex items-center justify-center px-4">
+    <div class="max-w-md w-full">
+      <div class="text-center mb-8">
+        <h1 class="text-2xl font-bold text-white">Showers Auto Detail</h1>
+        <p class="text-gray-400 text-sm mt-1">Admin Portal</p>
+      </div>
+
+      <div class="bg-gray-800 rounded-xl p-8 shadow-xl">
+        <!-- Login Form -->
+        <form id="login-form" class="space-y-6">
+          <div>
+            <label class="block text-sm font-medium text-gray-300 mb-2">Email</label>
+            <input
+              type="email"
+              id="email"
+              required
+              class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#EB6C1D] focus:border-transparent"
+              placeholder="Enter email"
+            />
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-300 mb-2">Password</label>
+            <input
+              type="password"
+              id="password"
+              required
+              class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#EB6C1D] focus:border-transparent"
+              placeholder="Enter password"
+            />
+          </div>
+
+          <!-- 2FA Code Field (hidden by default) -->
+          <div id="totp-field" class="hidden">
+            <label class="block text-sm font-medium text-gray-300 mb-2">2FA Code</label>
+            <input
+              type="text"
+              id="totpCode"
+              maxlength="6"
+              pattern="[0-9]{6}"
+              class="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#EB6C1D] focus:border-transparent text-center text-2xl tracking-widest"
+              placeholder="000000"
+            />
+            <p class="text-xs text-gray-400 mt-1">Enter the 6-digit code from your authenticator app</p>
+          </div>
+
+          <div class="flex items-center">
+            <input
+              type="checkbox"
+              id="rememberMe"
+              class="w-4 h-4 rounded border-gray-600 bg-gray-700 text-[#EB6C1D] focus:ring-[#EB6C1D]"
+            />
+            <label for="rememberMe" class="ml-2 text-sm text-gray-300">Remember me</label>
+          </div>
+
+          <button
+            type="submit"
+            id="submit-btn"
+            class="w-full bg-[#EB6C1D] hover:bg-[#D35E14] text-white font-semibold py-3 px-4 rounded-lg transition-colors"
+          >
+            Sign In
+          </button>
+        </form>
+
+        <div id="error-message" class="mt-4 p-3 bg-red-900/50 border border-red-700 rounded-lg text-red-200 text-sm hidden"></div>
+      </div>
+    </div>
+  </div>
+
+  <script is:inline>
+    const form = document.getElementById("login-form");
+    const emailInput = document.getElementById("email");
+    const passwordInput = document.getElementById("password");
+    const totpField = document.getElementById("totp-field");
+    const totpInput = document.getElementById("totpCode");
+    const rememberMe = document.getElementById("rememberMe");
+    const submitBtn = document.getElementById("submit-btn");
+    const errorDiv = document.getElementById("error-message");
+
+    let requiresTwoFactor = false;
+
+    // Check if already logged in
+    const token = localStorage.getItem("accessToken");
+    if (token) {
+      window.location.href = "/manage";
+    }
+
+    function showError(msg) {
+      errorDiv.textContent = msg;
+      errorDiv.classList.remove("hidden");
+    }
+
+    function hideError() {
+      errorDiv.classList.add("hidden");
+    }
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      hideError();
+      submitBtn.disabled = true;
+      submitBtn.textContent = "Signing in...";
+
+      try {
+        const body = {
+          email: emailInput.value,
+          password: passwordInput.value,
+          rememberMe: rememberMe.checked
+        };
+
+        if (requiresTwoFactor) {
+          body.totpCode = totpInput.value;
+        }
+
+        const response = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body)
+        });
+
+        const data = await response.json();
+
+        if (data.requiresTwoFactor) {
+          requiresTwoFactor = true;
+          totpField.classList.remove("hidden");
+          totpInput.focus();
+          submitBtn.textContent = "Verify & Sign In";
+          submitBtn.disabled = false;
+          return;
+        }
+
+        if (!response.ok) {
+          throw new Error(data.error || "Login failed");
+        }
+
+        // Store tokens
+        localStorage.setItem("accessToken", data.accessToken);
+        if (data.refreshToken) {
+          localStorage.setItem("refreshToken", data.refreshToken);
+        }
+        localStorage.setItem("user", JSON.stringify(data.user));
+
+        // Redirect to dashboard
+        window.location.href = "/manage";
+
+      } catch (err) {
+        showError(err.message);
+        submitBtn.disabled = false;
+        submitBtn.textContent = requiresTwoFactor ? "Verify & Sign In" : "Sign In";
+      }
+    });
+  </script>
+</Layout>

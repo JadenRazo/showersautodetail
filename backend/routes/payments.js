@@ -1,6 +1,5 @@
 import express from 'express';
-import pkg from 'square';
-const { SquareClient, SquareEnvironment } = pkg;
+import { SquareClient, SquareEnvironment, WebhooksHelper, SquareError } from 'square';
 import crypto from 'crypto';
 import pool from '../config/database.js';
 import { sendNotification } from '../middleware/notifications.js';
@@ -90,11 +89,10 @@ router.post('/create-deposit-payment', async (req, res) => {
   } catch (error) {
     console.error('Error creating deposit payment:', error);
 
-    // Handle Square-specific errors
-    if (error.errors) {
+    if (error instanceof SquareError) {
       return res.status(400).json({
         error: 'Payment failed',
-        details: error.errors.map(e => e.detail).join(', ')
+        details: error.message
       });
     }
 
@@ -175,11 +173,10 @@ router.post('/create-final-payment', async (req, res) => {
   } catch (error) {
     console.error('Error creating final payment:', error);
 
-    // Handle Square-specific errors
-    if (error.errors) {
+    if (error instanceof SquareError) {
       return res.status(400).json({
         error: 'Payment failed',
-        details: error.errors.map(e => e.detail).join(', ')
+        details: error.message
       });
     }
 
@@ -193,21 +190,32 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
   const notificationUrl = `${process.env.API_URL || 'http://localhost:3000'}/api/payments/webhook`;
 
   try {
-    // Verify webhook signature
     const body = req.body.toString();
-    const hmac = crypto.createHmac('sha256', process.env.SQUARE_WEBHOOK_SIGNATURE_KEY);
-    hmac.update(notificationUrl + body);
-    const expectedSignature = hmac.digest('base64');
 
-    if (signature !== expectedSignature) {
+    // Verify webhook signature using SDK helper
+    const isValid = await WebhooksHelper.verifySignature({
+      requestBody: body,
+      signatureHeader: signature,
+      signatureKey: process.env.SQUARE_WEBHOOK_SIGNATURE_KEY,
+      notificationUrl: notificationUrl
+    });
+
+    if (!isValid) {
       console.error('Webhook signature verification failed');
       return res.status(400).send('Webhook signature verification failed');
     }
 
     const event = JSON.parse(body);
 
-    if (event.type === 'payment.completed') {
+    // Handle payment.updated event (payment.completed doesn't exist)
+    if (event.type === 'payment.updated') {
       const payment = event.data.object.payment;
+
+      // Only process completed payments
+      if (payment.status !== 'COMPLETED') {
+        return res.json({ received: true });
+      }
+
       const referenceId = payment.reference_id;
 
       if (referenceId && referenceId.startsWith('booking-')) {

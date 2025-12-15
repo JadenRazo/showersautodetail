@@ -1,8 +1,9 @@
 import express from 'express';
-import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
 import pool from '../config/database.js';
+import { authenticator } from 'otplib';
+import QRCode from 'qrcode';
 import { loginValidation } from '../middleware/validators.js';
 import { authenticateToken } from '../middleware/auth.js';
 
@@ -11,33 +12,65 @@ const router = express.Router();
 const ACCESS_TOKEN_EXPIRY = '15m';
 const REFRESH_TOKEN_EXPIRY_DAYS = 30;
 
-// Login
+// Login - uses environment variables for credentials
 router.post('/login', loginValidation, async (req, res) => {
-  const { email, password, rememberMe = false } = req.body;
+  const { email, password, rememberMe = false, totpCode } = req.body;
 
   try {
-    const result = await pool.query(
-      'SELECT * FROM admin_users WHERE email = $1 AND is_active = true',
-      [email]
+    // Check credentials against environment variables
+    const adminEmail = process.env.ADMIN_EMAIL;
+    const adminPassword = process.env.ADMIN_PASSWORD;
+
+    if (!adminEmail || !adminPassword) {
+      console.error('ADMIN_EMAIL or ADMIN_PASSWORD not set in environment');
+      return res.status(500).json({ error: 'Server configuration error' });
+    }
+
+    if (email !== adminEmail || password !== adminPassword) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    // Check if 2FA is enabled (stored in admin_users table)
+    let user = null;
+    const userResult = await pool.query(
+      'SELECT * FROM admin_users WHERE email = $1',
+      [adminEmail]
     );
 
-    if (result.rows.length === 0) {
-      return res.status(401).json({ error: 'Invalid credentials' });
+    if (userResult.rows.length > 0) {
+      user = userResult.rows[0];
+
+      // Check 2FA if enabled
+      if (user.totp_enabled && user.totp_secret) {
+        if (!totpCode) {
+          return res.status(200).json({
+            requiresTwoFactor: true,
+            message: 'Please enter your 2FA code'
+          });
+        }
+
+        const isValidCode = authenticator.verify({ token: totpCode, secret: user.totp_secret });
+        if (!isValidCode) {
+          return res.status(401).json({ error: 'Invalid 2FA code' });
+        }
+      }
+    } else {
+      // Auto-create admin user entry for 2FA support
+      const result = await pool.query(
+        'INSERT INTO admin_users (email, password_hash, name, role) VALUES ($1, $2, $3, $4) RETURNING *',
+        [adminEmail, 'ENV_MANAGED', 'Admin', 'admin']
+      );
+      user = result.rows[0];
     }
 
-    const user = result.rows[0];
-    const validPassword = await bcrypt.compare(password, user.password_hash);
-
-    if (!validPassword) {
-      return res.status(401).json({ error: 'Invalid credentials' });
-    }
-
+    // Generate access token
     const accessToken = jwt.sign(
-      { id: user.id, email: user.email, role: user.role },
+      { id: user.id, email: adminEmail, role: 'admin' },
       process.env.JWT_SECRET,
       { expiresIn: ACCESS_TOKEN_EXPIRY }
     );
 
+    // Generate refresh token if "remember me"
     let refreshToken = null;
     if (rememberMe) {
       refreshToken = crypto.randomBytes(64).toString('hex');
@@ -54,7 +87,7 @@ router.post('/login', loginValidation, async (req, res) => {
       accessToken,
       refreshToken,
       expiresIn: ACCESS_TOKEN_EXPIRY,
-      user: { id: user.id, email: user.email, name: user.name, role: user.role }
+      user: { id: user.id, email: adminEmail, name: user.name || 'Admin', role: 'admin' }
     });
   } catch (error) {
     console.error('Login error:', error);
@@ -74,13 +107,7 @@ router.post('/refresh', async (req, res) => {
     const tokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
 
     const result = await pool.query(
-      `SELECT rt.*, au.email, au.name, au.role
-       FROM refresh_tokens rt
-       JOIN admin_users au ON rt.user_id = au.id
-       WHERE rt.token_hash = $1
-         AND rt.is_revoked = false
-         AND rt.expires_at > NOW()
-         AND au.is_active = true`,
+      'SELECT rt.*, au.email, au.name, au.role FROM refresh_tokens rt JOIN admin_users au ON rt.user_id = au.id WHERE rt.token_hash = $1 AND rt.is_revoked = false AND rt.expires_at > NOW() AND au.is_active = true',
       [tokenHash]
     );
 
@@ -141,92 +168,146 @@ router.get('/me', authenticateToken, async (req, res) => {
   }
 });
 
-// Change password
-router.post('/change-password', authenticateToken, async (req, res) => {
-  const { currentPassword, newPassword } = req.body;
-
-  if (!currentPassword || !newPassword) {
-    return res.status(400).json({ error: 'Current and new password required' });
-  }
-
-  if (newPassword.length < 8) {
-    return res.status(400).json({ error: 'New password must be at least 8 characters' });
-  }
-
+// 2FA Setup - Generate secret and QR code
+router.post('/2fa/setup', authenticateToken, async (req, res) => {
   try {
-    const result = await pool.query(
-      'SELECT password_hash FROM admin_users WHERE id = $1',
-      [req.user.id]
+    const userId = req.user.id;
+
+    // Check if 2FA already enabled
+    const userResult = await pool.query(
+      'SELECT totp_enabled FROM admin_users WHERE id = $1',
+      [userId]
     );
 
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'User not found' });
+    if (userResult.rows[0]?.totp_enabled) {
+      return res.status(400).json({ error: '2FA is already enabled' });
     }
 
-    const validPassword = await bcrypt.compare(currentPassword, result.rows[0].password_hash);
-    if (!validPassword) {
-      return res.status(401).json({ error: 'Current password is incorrect' });
-    }
+    // Generate new secret
+    const secret = authenticator.generateSecret();
+    const email = req.user.email;
+    const otpauth = authenticator.keyuri(email, 'Showers Auto Detail', secret);
 
-    const rounds = parseInt(process.env.BCRYPT_ROUNDS) || 12;
-    const newHash = await bcrypt.hash(newPassword, rounds);
+    // Generate QR code
+    const qrCode = await QRCode.toDataURL(otpauth);
 
+    // Store secret temporarily (not enabled yet)
     await pool.query(
-      'UPDATE admin_users SET password_hash = $1, updated_at = NOW() WHERE id = $2',
-      [newHash, req.user.id]
+      'UPDATE admin_users SET totp_secret = $1 WHERE id = $2',
+      [secret, userId]
     );
 
-    // Revoke all refresh tokens for this user
-    await pool.query(
-      'UPDATE refresh_tokens SET is_revoked = true WHERE user_id = $1',
-      [req.user.id]
-    );
-
-    res.json({ success: true, message: 'Password changed successfully' });
+    res.json({
+      secret,
+      qrCode,
+      manualEntry: secret
+    });
   } catch (error) {
-    console.error('Change password error:', error);
-    res.status(500).json({ error: 'Failed to change password' });
+    console.error('2FA setup error:', error);
+    res.status(500).json({ error: 'Failed to setup 2FA' });
   }
 });
 
-// Create initial admin user (only works if no admin exists)
-router.post('/setup', async (req, res) => {
-  const { email, password, name } = req.body;
-
-  if (!email || !password) {
-    return res.status(400).json({ error: 'Email and password required' });
-  }
-
-  if (password.length < 8) {
-    return res.status(400).json({ error: 'Password must be at least 8 characters' });
-  }
-
+// 2FA Verify and Enable
+router.post('/2fa/verify', authenticateToken, async (req, res) => {
   try {
-    // Check if any admin exists
-    const existingAdmin = await pool.query('SELECT id FROM admin_users LIMIT 1');
-    if (existingAdmin.rows.length > 0) {
-      return res.status(403).json({ error: 'Admin already exists. Use login instead.' });
+    const { code } = req.body;
+    const userId = req.user.id;
+
+    if (!code) {
+      return res.status(400).json({ error: 'Verification code required' });
     }
 
-    const rounds = parseInt(process.env.BCRYPT_ROUNDS) || 12;
-    const passwordHash = await bcrypt.hash(password, rounds);
-
+    // Get user's secret
     const result = await pool.query(
-      'INSERT INTO admin_users (email, password_hash, name, role) VALUES ($1, $2, $3, $4) RETURNING id, email, name, role',
-      [email, passwordHash, name || 'Admin', 'admin']
+      'SELECT totp_secret, totp_enabled FROM admin_users WHERE id = $1',
+      [userId]
     );
 
-    res.status(201).json({
-      success: true,
-      message: 'Admin user created successfully',
-      user: result.rows[0]
-    });
-  } catch (error) {
-    console.error('Setup error:', error);
-    if (error.code === '23505') {
-      return res.status(400).json({ error: 'Email already exists' });
+    const user = result.rows[0];
+
+    if (!user?.totp_secret) {
+      return res.status(400).json({ error: 'Please setup 2FA first' });
     }
-    res.status(500).json({ error: 'Failed to create admin user' });
+
+    if (user.totp_enabled) {
+      return res.status(400).json({ error: '2FA is already enabled' });
+    }
+
+    // Verify code
+    const isValid = authenticator.verify({ token: code, secret: user.totp_secret });
+
+    if (!isValid) {
+      return res.status(400).json({ error: 'Invalid verification code' });
+    }
+
+    // Enable 2FA
+    await pool.query(
+      'UPDATE admin_users SET totp_enabled = true WHERE id = $1',
+      [userId]
+    );
+
+    res.json({ success: true, message: '2FA enabled successfully' });
+  } catch (error) {
+    console.error('2FA verify error:', error);
+    res.status(500).json({ error: 'Failed to verify 2FA' });
+  }
+});
+
+// 2FA Disable
+router.post('/2fa/disable', authenticateToken, async (req, res) => {
+  try {
+    const { code } = req.body;
+    const userId = req.user.id;
+
+    if (!code) {
+      return res.status(400).json({ error: 'Current 2FA code required' });
+    }
+
+    // Get user's secret
+    const result = await pool.query(
+      'SELECT totp_secret, totp_enabled FROM admin_users WHERE id = $1',
+      [userId]
+    );
+
+    const user = result.rows[0];
+
+    if (!user?.totp_enabled) {
+      return res.status(400).json({ error: '2FA is not enabled' });
+    }
+
+    // Verify code
+    const isValid = authenticator.verify({ token: code, secret: user.totp_secret });
+
+    if (!isValid) {
+      return res.status(400).json({ error: 'Invalid verification code' });
+    }
+
+    // Disable 2FA
+    await pool.query(
+      'UPDATE admin_users SET totp_enabled = false, totp_secret = NULL WHERE id = $1',
+      [userId]
+    );
+
+    res.json({ success: true, message: '2FA disabled successfully' });
+  } catch (error) {
+    console.error('2FA disable error:', error);
+    res.status(500).json({ error: 'Failed to disable 2FA' });
+  }
+});
+
+// 2FA Status
+router.get('/2fa/status', authenticateToken, async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT totp_enabled FROM admin_users WHERE id = $1',
+      [req.user.id]
+    );
+
+    res.json({ enabled: result.rows[0]?.totp_enabled || false });
+  } catch (error) {
+    console.error('2FA status error:', error);
+    res.status(500).json({ error: 'Failed to get 2FA status' });
   }
 });
 

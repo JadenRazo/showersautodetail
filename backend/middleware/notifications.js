@@ -145,7 +145,9 @@ We've received your request and will get back to you shortly.
 Your Request Details:
 - Vehicle Type: ${data.vehicleType}
 - Service: ${data.serviceLevel}
-- Estimated Price: $${data.estimatedPrice}
+${data.selectedAddons?.length ? `- Add-ons: ${data.selectedAddons.join(', ')}
+- Add-on Total: $${data.addonTotal}
+` : ''}- Estimated Total: $${data.estimatedPrice}
 
 If you have any questions, feel free to contact us:
 Phone: (442) 229-5998

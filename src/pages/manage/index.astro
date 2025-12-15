@@ -1,0 +1,872 @@
+---
+import Layout from '../../layouts/Layout.astro';
+---
+
+<Layout title="Admin Dashboard - Showers Auto Detail">
+  <div id="app" class="min-h-screen bg-gray-900 hidden">
+    <!-- Toast Container -->
+    <div id="toast-container" class="fixed bottom-4 left-4 z-50 space-y-2"></div>
+
+    <!-- Confirmation Modal -->
+    <div id="confirm-modal" class="fixed inset-0 bg-black/50 z-40 hidden items-center justify-center">
+      <div class="bg-gray-800 rounded-lg p-6 max-w-md mx-4 shadow-xl">
+        <h3 id="confirm-title" class="text-xl font-bold text-white mb-2">Confirm Action</h3>
+        <p id="confirm-message" class="text-gray-300 mb-6">Are you sure?</p>
+        <div class="flex justify-end gap-3">
+          <button id="confirm-cancel" class="px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded-lg transition-colors">Cancel</button>
+          <button id="confirm-ok" class="px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg transition-colors">Confirm</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Edit Booking Modal -->
+    <div id="edit-modal" class="fixed inset-0 bg-black/50 z-40 hidden items-center justify-center overflow-y-auto py-8">
+      <div class="bg-gray-800 rounded-lg p-6 max-w-2xl mx-4 shadow-xl w-full">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-xl font-bold text-white">Edit Booking</h3>
+          <button id="edit-close" class="text-gray-400 hover:text-white text-2xl">&times;</button>
+        </div>
+        <form id="edit-form" class="space-y-4">
+          <input type="hidden" id="edit-id">
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm text-gray-300 mb-1">Customer Name</label>
+              <input type="text" id="edit-name" class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white">
+            </div>
+            <div>
+              <label class="block text-sm text-gray-300 mb-1">Email</label>
+              <input type="email" id="edit-email" class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white">
+            </div>
+            <div>
+              <label class="block text-sm text-gray-300 mb-1">Phone</label>
+              <input type="tel" id="edit-phone" class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white">
+            </div>
+            <div>
+              <label class="block text-sm text-gray-300 mb-1">Vehicle Type</label>
+              <select id="edit-vehicle" class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white">
+                <option value="sedan">Sedan/Coupe</option>
+                <option value="suv">SUV/Truck</option>
+                <option value="commercial">Commercial</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm text-gray-300 mb-1">Date</label>
+              <input type="date" id="edit-date" class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white">
+            </div>
+            <div>
+              <label class="block text-sm text-gray-300 mb-1">Time</label>
+              <input type="time" id="edit-time" class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white">
+            </div>
+            <div>
+              <label class="block text-sm text-gray-300 mb-1">Total Amount ($)</label>
+              <input type="number" step="0.01" id="edit-total" class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white">
+            </div>
+            <div>
+              <label class="block text-sm text-gray-300 mb-1">Deposit Amount ($)</label>
+              <input type="number" step="0.01" id="edit-deposit" class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white">
+            </div>
+            <div>
+              <label class="block text-sm text-gray-300 mb-1">Status</label>
+              <select id="edit-status" class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white">
+                <option value="pending">Pending</option>
+                <option value="confirmed">Confirmed</option>
+                <option value="in_progress">In Progress</option>
+                <option value="completed">Completed</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <label class="block text-sm text-gray-300 mb-1">Address</label>
+            <input type="text" id="edit-address" class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white">
+          </div>
+          <div>
+            <label class="block text-sm text-gray-300 mb-1">Notes</label>
+            <textarea id="edit-notes" rows="2" class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"></textarea>
+          </div>
+          <div class="flex justify-end gap-3 pt-4">
+            <button type="button" id="edit-cancel-btn" class="px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded-lg">Cancel</button>
+            <button type="submit" class="px-4 py-2 bg-[#EB6C1D] hover:bg-[#D35E14] text-white rounded-lg">Save Changes</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- View Booking Modal -->
+    <div id="view-modal" class="fixed inset-0 bg-black/50 z-40 hidden items-center justify-center overflow-y-auto py-8">
+      <div class="bg-gray-800 rounded-lg p-6 max-w-lg mx-4 shadow-xl w-full">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-xl font-bold text-white">Booking Details</h3>
+          <button id="view-close" class="text-gray-400 hover:text-white text-2xl">&times;</button>
+        </div>
+        <div id="view-content" class="space-y-3 text-gray-300">
+          <!-- Filled dynamically -->
+        </div>
+        <div class="flex justify-end gap-3 pt-4 mt-4 border-t border-gray-700">
+          <button id="view-edit-btn" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg">Edit</button>
+          <button id="view-close-btn" class="px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded-lg">Close</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="container mx-auto px-4 py-6">
+      <!-- Header -->
+      <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold text-white">Admin Dashboard</h1>
+        <div class="flex items-center gap-4">
+          <a href="/manage/settings" class="text-gray-300 hover:text-white transition-colors">Settings</a>
+          <button id="logout-btn" class="px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg transition-colors">Logout</button>
+        </div>
+      </div>
+
+      <!-- Stats Bar -->
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div class="bg-gray-800 rounded-lg p-4">
+          <p class="text-gray-400 text-sm">Total Bookings</p>
+          <p id="stat-total" class="text-2xl font-bold text-white">-</p>
+        </div>
+        <div class="bg-gray-800 rounded-lg p-4">
+          <p class="text-gray-400 text-sm">Pending Payments</p>
+          <p id="stat-pending" class="text-2xl font-bold text-yellow-400">-</p>
+        </div>
+        <div class="bg-gray-800 rounded-lg p-4">
+          <p class="text-gray-400 text-sm">This Month Revenue</p>
+          <p id="stat-revenue" class="text-2xl font-bold text-green-400">-</p>
+        </div>
+        <div class="bg-gray-800 rounded-lg p-4">
+          <p class="text-gray-400 text-sm">Confirmed</p>
+          <p id="stat-confirmed" class="text-2xl font-bold text-blue-400">-</p>
+        </div>
+      </div>
+
+      <!-- Create Invoice Section -->
+      <div class="bg-gray-800 rounded-lg mb-6">
+        <button id="toggle-create" class="w-full px-6 py-4 flex justify-between items-center text-left">
+          <span class="text-lg font-semibold text-white">Create New Invoice</span>
+          <svg id="toggle-icon" class="w-5 h-5 text-gray-400 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+          </svg>
+        </button>
+        <div id="create-form-container" class="hidden px-6 pb-6">
+          <form id="create-form" class="space-y-4">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label class="block text-sm text-gray-300 mb-1">Customer Name *</label>
+                <input type="text" name="customerName" required class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-[#EB6C1D] focus:border-transparent">
+              </div>
+              <div>
+                <label class="block text-sm text-gray-300 mb-1">Email *</label>
+                <input type="email" name="customerEmail" required class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-[#EB6C1D] focus:border-transparent">
+              </div>
+              <div>
+                <label class="block text-sm text-gray-300 mb-1">Phone *</label>
+                <input type="tel" name="customerPhone" required class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-[#EB6C1D] focus:border-transparent">
+              </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label class="block text-sm text-gray-300 mb-1">Vehicle Type *</label>
+                <select name="vehicleType" required class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white">
+                  <option value="sedan">Sedan/Coupe</option>
+                  <option value="suv">SUV/Truck</option>
+                  <option value="commercial">Commercial</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-sm text-gray-300 mb-1">Service *</label>
+                <select name="serviceId" id="service-select" required class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white">
+                  <option value="">Loading services...</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-sm text-gray-300 mb-1">Date *</label>
+                <input type="date" name="bookingDate" required class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white">
+              </div>
+            </div>
+            <div>
+              <label class="block text-sm text-gray-300 mb-1">Add-ons (optional)</label>
+              <select id="addon-select" multiple class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white h-28">
+                <option value="">Loading add-ons...</option>
+              </select>
+              <p class="text-xs text-gray-500 mt-1">Hold Ctrl/Cmd to select multiple</p>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label class="block text-sm text-gray-300 mb-1">Time *</label>
+                <input type="time" name="bookingTime" required class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white">
+              </div>
+              <div class="md:col-span-2">
+                <label class="block text-sm text-gray-300 mb-1">Address</label>
+                <input type="text" name="address" class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white">
+              </div>
+            </div>
+            <div>
+              <label class="block text-sm text-gray-300 mb-1">Notes</label>
+              <textarea name="notes" rows="2" class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white"></textarea>
+            </div>
+            <div class="bg-gray-700/50 rounded-lg p-4 border border-gray-600">
+              <div class="flex justify-between items-center text-lg">
+                <span class="text-gray-300">Estimated Total:</span>
+                <span id="calc-total" class="text-white font-bold">$0.00</span>
+              </div>
+              <div class="flex justify-between items-center text-sm mt-2">
+                <span class="text-gray-400">Deposit (25%):</span>
+                <span id="calc-deposit" class="text-gray-300">$0.00</span>
+              </div>
+            </div>
+            <div class="flex justify-end">
+              <button type="submit" class="px-6 py-2 bg-[#EB6C1D] hover:bg-[#D35E14] text-white font-semibold rounded-lg transition-colors">
+                Create Invoice
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Search and Filter Bar -->
+      <div class="bg-gray-800 rounded-lg p-4 mb-4">
+        <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+          <div class="md:col-span-2">
+            <input type="text" id="search-input" placeholder="Search by name, email, or phone..." class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400">
+          </div>
+          <div>
+            <select id="filter-status" class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white">
+              <option value="">All Statuses</option>
+              <option value="pending">Pending</option>
+              <option value="confirmed">Confirmed</option>
+              <option value="in_progress">In Progress</option>
+              <option value="completed">Completed</option>
+              <option value="cancelled">Cancelled</option>
+            </select>
+          </div>
+          <div>
+            <select id="filter-payment" class="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white">
+              <option value="">All Payments</option>
+              <option value="paid">Paid</option>
+              <option value="unpaid">Unpaid</option>
+            </select>
+          </div>
+          <div>
+            <button id="refresh-btn" class="w-full px-3 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded-lg transition-colors flex items-center justify-center gap-2">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+              </svg>
+              Refresh
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bookings Table -->
+      <div class="bg-gray-800 rounded-lg overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full">
+            <thead class="bg-gray-700">
+              <tr>
+                <th class="px-4 py-3 text-left text-sm font-medium text-gray-300 cursor-pointer hover:text-white" data-sort="id">#</th>
+                <th class="px-4 py-3 text-left text-sm font-medium text-gray-300 cursor-pointer hover:text-white" data-sort="customer_name">Customer</th>
+                <th class="px-4 py-3 text-left text-sm font-medium text-gray-300 cursor-pointer hover:text-white" data-sort="booking_date">Date</th>
+                <th class="px-4 py-3 text-left text-sm font-medium text-gray-300">Vehicle</th>
+                <th class="px-4 py-3 text-left text-sm font-medium text-gray-300 cursor-pointer hover:text-white" data-sort="total_amount">Total</th>
+                <th class="px-4 py-3 text-left text-sm font-medium text-gray-300">Deposit</th>
+                <th class="px-4 py-3 text-left text-sm font-medium text-gray-300 cursor-pointer hover:text-white" data-sort="status">Status</th>
+                <th class="px-4 py-3 text-left text-sm font-medium text-gray-300">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="bookings-table" class="divide-y divide-gray-700">
+              <tr>
+                <td colspan="8" class="px-4 py-8 text-center text-gray-400">Loading bookings...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Pagination -->
+        <div class="px-4 py-3 bg-gray-700 flex items-center justify-between">
+          <p id="pagination-info" class="text-sm text-gray-400">Showing 0 of 0 bookings</p>
+          <div class="flex gap-2">
+            <button id="prev-page" disabled class="px-3 py-1 bg-gray-600 hover:bg-gray-500 disabled:bg-gray-800 disabled:cursor-not-allowed text-white rounded transition-colors">Previous</button>
+            <span id="page-indicator" class="px-3 py-1 text-gray-300">Page 1</span>
+            <button id="next-page" disabled class="px-3 py-1 bg-gray-600 hover:bg-gray-500 disabled:bg-gray-800 disabled:cursor-not-allowed text-white rounded transition-colors">Next</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script is:inline>
+    // State
+    let accessToken = localStorage.getItem('accessToken');
+    let bookings = [];
+    let filteredBookings = [];
+    let services = [];
+    let addons = [];
+    let currentPage = 1;
+    const perPage = 10;
+    let sortColumn = 'booking_date';
+    let sortDirection = 'desc';
+    let currentViewBooking = null;
+
+    // Check auth
+    if (!accessToken) {
+      window.location.href = '/manage/login';
+    } else {
+      document.getElementById('app').classList.remove('hidden');
+    }
+
+    // Toast function
+    function showToast(message, type = 'success') {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      toast.className = 'px-4 py-3 rounded-lg shadow-lg text-white transform transition-all duration-300 ' +
+        (type === 'error' ? 'bg-red-600' : type === 'warning' ? 'bg-yellow-600' : 'bg-green-600');
+      toast.textContent = message;
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        setTimeout(() => toast.remove(), 300);
+      }, 3000);
+    }
+
+    // Confirm dialog
+    function confirm(title, message) {
+      return new Promise((resolve) => {
+        const modal = document.getElementById('confirm-modal');
+        document.getElementById('confirm-title').textContent = title;
+        document.getElementById('confirm-message').textContent = message;
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+
+        const cleanup = () => {
+          modal.classList.add('hidden');
+          modal.classList.remove('flex');
+        };
+
+        document.getElementById('confirm-ok').onclick = () => { cleanup(); resolve(true); };
+        document.getElementById('confirm-cancel').onclick = () => { cleanup(); resolve(false); };
+      });
+    }
+
+    // API call helper
+    async function api(url, options = {}) {
+      const response = await fetch(url, {
+        ...options,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + accessToken,
+          ...options.headers
+        }
+      });
+
+      if (response.status === 401) {
+        localStorage.removeItem('accessToken');
+        window.location.href = '/manage/login';
+        return;
+      }
+
+      return response;
+    }
+
+    // Load services
+    async function loadServices() {
+      try {
+        const response = await fetch('/api/packages');
+        if (response.ok) {
+          services = await response.json();
+          const select = document.getElementById('service-select');
+          select.innerHTML = services.map(s =>
+            '<option value="' + s.id + '">' + s.name + ' ($' + parseFloat(s.base_price).toFixed(0) + '+)</option>'
+          ).join('');
+          calculateTotal();
+        }
+      } catch (e) {
+        console.error('Failed to load services:', e);
+      }
+    }
+
+    // Load addons
+    async function loadAddons() {
+      try {
+        const response = await fetch('/api/addons');
+        if (response.ok) {
+          addons = await response.json();
+          const select = document.getElementById('addon-select');
+          select.innerHTML = addons.map(a =>
+            '<option value="' + a.id + '">' + a.name + ' ($' + parseFloat(a.sedan_price).toFixed(0) + '+)</option>'
+          ).join('');
+          calculateTotal();
+        }
+      } catch (e) {
+        console.error('Failed to load addons:', e);
+      }
+    }
+
+    // Calculate invoice total
+    function calculateTotal() {
+      const vehicleType = document.querySelector('[name="vehicleType"]').value || 'sedan';
+      const serviceSelect = document.getElementById('service-select');
+      const addonSelect = document.getElementById('addon-select');
+
+      let total = 0;
+
+      // Package price
+      const serviceId = parseInt(serviceSelect.value);
+      const pkg = services.find(s => s.id === serviceId);
+      if (pkg) {
+        const multiplier = pkg.vehicle_multipliers?.[vehicleType] || 1.0;
+        total += parseFloat(pkg.base_price) * multiplier;
+      }
+
+      // Addon prices
+      const selectedAddonIds = Array.from(addonSelect.selectedOptions)
+        .map(o => parseInt(o.value))
+        .filter(v => !isNaN(v));
+
+      for (const addonId of selectedAddonIds) {
+        const addon = addons.find(a => a.id === addonId);
+        if (addon) {
+          const priceKey = vehicleType === 'commercial' ? 'commercial_price'
+            : vehicleType === 'suv' ? 'suv_price' : 'sedan_price';
+          total += parseFloat(addon[priceKey]) || 0;
+        }
+      }
+
+      const deposit = total * 0.25;
+
+      document.getElementById('calc-total').textContent = '$' + total.toFixed(2);
+      document.getElementById('calc-deposit').textContent = '$' + deposit.toFixed(2);
+    }
+
+    // Load stats
+    async function loadStats() {
+      try {
+        const response = await api('/api/bookings/stats/summary');
+        if (response.ok) {
+          const stats = await response.json();
+          document.getElementById('stat-total').textContent = stats.totalBookings;
+          document.getElementById('stat-pending').textContent = stats.pendingPayments;
+          document.getElementById('stat-revenue').textContent = '$' + stats.thisMonthRevenue.toFixed(2);
+          document.getElementById('stat-confirmed').textContent = stats.statusCounts.confirmed || 0;
+        }
+      } catch (e) {
+        console.error('Failed to load stats:', e);
+      }
+    }
+
+    // Load bookings
+    async function loadBookings() {
+      try {
+        const response = await api('/api/bookings');
+        if (response.ok) {
+          bookings = await response.json();
+          applyFilters();
+        }
+      } catch (e) {
+        console.error('Failed to load bookings:', e);
+        document.getElementById('bookings-table').innerHTML = '<tr><td colspan="8" class="px-4 py-8 text-center text-red-400">Failed to load bookings</td></tr>';
+      }
+    }
+
+    // Apply filters and sorting
+    function applyFilters() {
+      const search = document.getElementById('search-input').value.toLowerCase();
+      const statusFilter = document.getElementById('filter-status').value;
+      const paymentFilter = document.getElementById('filter-payment').value;
+
+      filteredBookings = bookings.filter(b => {
+        const matchSearch = !search ||
+          b.customer_name.toLowerCase().includes(search) ||
+          b.customer_email.toLowerCase().includes(search) ||
+          b.customer_phone.includes(search);
+        const matchStatus = !statusFilter || b.status === statusFilter;
+        const matchPayment = !paymentFilter ||
+          (paymentFilter === 'paid' && b.deposit_paid) ||
+          (paymentFilter === 'unpaid' && !b.deposit_paid);
+        return matchSearch && matchStatus && matchPayment;
+      });
+
+      // Sort
+      filteredBookings.sort((a, b) => {
+        let valA = a[sortColumn];
+        let valB = b[sortColumn];
+        if (sortColumn === 'total_amount' || sortColumn === 'id') {
+          valA = parseFloat(valA) || 0;
+          valB = parseFloat(valB) || 0;
+        }
+        if (valA < valB) return sortDirection === 'asc' ? -1 : 1;
+        if (valA > valB) return sortDirection === 'asc' ? 1 : -1;
+        return 0;
+      });
+
+      currentPage = 1;
+      renderBookings();
+    }
+
+    // Render bookings table
+    function renderBookings() {
+      const start = (currentPage - 1) * perPage;
+      const end = start + perPage;
+      const pageBookings = filteredBookings.slice(start, end);
+      const totalPages = Math.ceil(filteredBookings.length / perPage) || 1;
+
+      const tbody = document.getElementById('bookings-table');
+
+      if (pageBookings.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" class="px-4 py-8 text-center text-gray-400">No bookings found</td></tr>';
+      } else {
+        tbody.innerHTML = pageBookings.map(b => {
+          const statusColors = {
+            pending: 'bg-yellow-900 text-yellow-300',
+            confirmed: 'bg-blue-900 text-blue-300',
+            in_progress: 'bg-purple-900 text-purple-300',
+            completed: 'bg-green-900 text-green-300',
+            cancelled: 'bg-red-900 text-red-300'
+          };
+          const statusClass = statusColors[b.status] || 'bg-gray-700 text-gray-300';
+          const paidBadge = b.deposit_paid
+            ? '<span class="text-xs px-2 py-0.5 rounded bg-green-900 text-green-300">Paid</span>'
+            : '<span class="text-xs px-2 py-0.5 rounded bg-red-900 text-red-300">Unpaid</span>';
+
+          return '<tr class="hover:bg-gray-700/50">' +
+            '<td class="px-4 py-3 text-gray-300">' + b.id + '</td>' +
+            '<td class="px-4 py-3"><div class="text-white">' + escapeHtml(b.customer_name) + '</div><div class="text-xs text-gray-400">' + escapeHtml(b.customer_email) + '</div></td>' +
+            '<td class="px-4 py-3 text-gray-300">' + formatDate(b.booking_date) + '<div class="text-xs text-gray-400">' + formatTime(b.booking_time) + '</div></td>' +
+            '<td class="px-4 py-3 text-gray-300 capitalize">' + b.vehicle_type + '</td>' +
+            '<td class="px-4 py-3 text-white">$' + parseFloat(b.total_amount).toFixed(2) + '</td>' +
+            '<td class="px-4 py-3">$' + parseFloat(b.deposit_amount).toFixed(2) + ' ' + paidBadge + '</td>' +
+            '<td class="px-4 py-3"><span class="text-xs px-2 py-1 rounded ' + statusClass + '">' + b.status.replace('_', ' ') + '</span></td>' +
+            '<td class="px-4 py-3"><div class="flex gap-1 flex-wrap">' +
+              '<button onclick="viewBooking(' + b.id + ')" class="p-1.5 bg-gray-600 hover:bg-gray-500 rounded text-white" title="View"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg></button>' +
+              '<button onclick="editBooking(' + b.id + ')" class="p-1.5 bg-blue-600 hover:bg-blue-500 rounded text-white" title="Edit"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>' +
+              (b.deposit_paid ? '' : '<button onclick="copyPaymentLink(' + b.id + ')" class="p-1.5 bg-orange-600 hover:bg-orange-500 rounded text-white" title="Copy Payment Link"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/></svg></button>') +
+              (b.deposit_paid ? '' : '<button onclick="markPaid(' + b.id + ')" class="p-1.5 bg-green-600 hover:bg-green-500 rounded text-white" title="Mark Paid"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></button>') +
+              '<button onclick="deleteBooking(' + b.id + ')" class="p-1.5 bg-red-600 hover:bg-red-500 rounded text-white" title="Delete"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>' +
+            '</div></td>' +
+          '</tr>';
+        }).join('');
+      }
+
+      // Update pagination
+      document.getElementById('pagination-info').textContent =
+        'Showing ' + (start + 1) + '-' + Math.min(end, filteredBookings.length) + ' of ' + filteredBookings.length + ' bookings';
+      document.getElementById('page-indicator').textContent = 'Page ' + currentPage + ' of ' + totalPages;
+      document.getElementById('prev-page').disabled = currentPage === 1;
+      document.getElementById('next-page').disabled = currentPage >= totalPages;
+    }
+
+    // Helper functions
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text || '';
+      return div.innerHTML;
+    }
+
+    function formatDate(dateStr) {
+      if (!dateStr) return '-';
+      const date = new Date(dateStr + 'T00:00:00');
+      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+
+    function formatTime(timeStr) {
+      if (!timeStr) return '-';
+      const [hours, minutes] = timeStr.split(':');
+      const hour = parseInt(hours);
+      const ampm = hour >= 12 ? 'PM' : 'AM';
+      const hour12 = hour % 12 || 12;
+      return hour12 + ':' + minutes + ' ' + ampm;
+    }
+
+    // Actions
+    function viewBooking(id) {
+      const booking = bookings.find(b => b.id === id);
+      if (!booking) return;
+      currentViewBooking = booking;
+
+      const content = document.getElementById('view-content');
+      content.innerHTML =
+        '<div class="flex justify-between"><span class="text-gray-400">ID:</span><span class="text-white">' + booking.id + '</span></div>' +
+        '<div class="flex justify-between"><span class="text-gray-400">Customer:</span><span class="text-white">' + escapeHtml(booking.customer_name) + '</span></div>' +
+        '<div class="flex justify-between"><span class="text-gray-400">Email:</span><span class="text-white">' + escapeHtml(booking.customer_email) + '</span></div>' +
+        '<div class="flex justify-between"><span class="text-gray-400">Phone:</span><span class="text-white">' + escapeHtml(booking.customer_phone) + '</span></div>' +
+        '<div class="flex justify-between"><span class="text-gray-400">Vehicle:</span><span class="text-white capitalize">' + booking.vehicle_type + '</span></div>' +
+        '<div class="flex justify-between"><span class="text-gray-400">Date:</span><span class="text-white">' + formatDate(booking.booking_date) + '</span></div>' +
+        '<div class="flex justify-between"><span class="text-gray-400">Time:</span><span class="text-white">' + formatTime(booking.booking_time) + '</span></div>' +
+        '<div class="flex justify-between"><span class="text-gray-400">Address:</span><span class="text-white">' + escapeHtml(booking.address || '-') + '</span></div>' +
+        '<div class="flex justify-between"><span class="text-gray-400">Total:</span><span class="text-white">$' + parseFloat(booking.total_amount).toFixed(2) + '</span></div>' +
+        '<div class="flex justify-between"><span class="text-gray-400">Deposit:</span><span class="text-white">$' + parseFloat(booking.deposit_amount).toFixed(2) + ' (' + (booking.deposit_paid ? 'Paid' : 'Unpaid') + ')</span></div>' +
+        '<div class="flex justify-between"><span class="text-gray-400">Status:</span><span class="text-white capitalize">' + booking.status.replace('_', ' ') + '</span></div>' +
+        (booking.notes ? '<div class="pt-2 border-t border-gray-700"><span class="text-gray-400">Notes:</span><p class="text-white mt-1">' + escapeHtml(booking.notes) + '</p></div>' : '');
+
+      const modal = document.getElementById('view-modal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function editBooking(id) {
+      const booking = bookings.find(b => b.id === id);
+      if (!booking) return;
+
+      document.getElementById('edit-id').value = booking.id;
+      document.getElementById('edit-name').value = booking.customer_name;
+      document.getElementById('edit-email').value = booking.customer_email;
+      document.getElementById('edit-phone').value = booking.customer_phone;
+      document.getElementById('edit-vehicle').value = booking.vehicle_type;
+      document.getElementById('edit-date').value = booking.booking_date;
+      document.getElementById('edit-time').value = booking.booking_time;
+      document.getElementById('edit-total').value = parseFloat(booking.total_amount).toFixed(2);
+      document.getElementById('edit-deposit').value = parseFloat(booking.deposit_amount).toFixed(2);
+      document.getElementById('edit-status').value = booking.status;
+      document.getElementById('edit-address').value = booking.address || '';
+      document.getElementById('edit-notes').value = booking.notes || '';
+
+      const modal = document.getElementById('edit-modal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    async function copyPaymentLink(id) {
+      const booking = bookings.find(b => b.id === id);
+      if (!booking || !booking.payment_token) {
+        showToast('No payment link available', 'error');
+        return;
+      }
+      const link = window.location.origin + '/pay?id=' + booking.id + '&token=' + booking.payment_token;
+      try {
+        await navigator.clipboard.writeText(link);
+        showToast('Payment link copied to clipboard');
+      } catch (e) {
+        showToast('Failed to copy link', 'error');
+      }
+    }
+
+    async function markPaid(id) {
+      const confirmed = await confirm('Mark as Paid', 'Are you sure you want to mark this deposit as paid?');
+      if (!confirmed) return;
+
+      try {
+        const response = await api('/api/bookings/' + id + '/mark-paid', { method: 'POST' });
+        if (response.ok) {
+          showToast('Marked as paid');
+          loadBookings();
+          loadStats();
+        } else {
+          const data = await response.json();
+          showToast(data.error || 'Failed to mark as paid', 'error');
+        }
+      } catch (e) {
+        showToast('Failed to mark as paid', 'error');
+      }
+    }
+
+    async function deleteBooking(id) {
+      const confirmed = await confirm('Delete Booking', 'Are you sure you want to delete this booking? This cannot be undone.');
+      if (!confirmed) return;
+
+      try {
+        const response = await api('/api/bookings/' + id, { method: 'DELETE' });
+        if (response.ok) {
+          showToast('Booking deleted');
+          loadBookings();
+          loadStats();
+        } else {
+          const data = await response.json();
+          showToast(data.error || 'Failed to delete', 'error');
+        }
+      } catch (e) {
+        showToast('Failed to delete booking', 'error');
+      }
+    }
+
+    // Event listeners
+    document.getElementById('logout-btn').addEventListener('click', async () => {
+      const refreshToken = localStorage.getItem('refreshToken');
+      if (refreshToken) {
+        await fetch('/api/auth/logout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refreshToken })
+        });
+      }
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('refreshToken');
+      window.location.href = '/manage/login';
+    });
+
+    document.getElementById('toggle-create').addEventListener('click', () => {
+      const container = document.getElementById('create-form-container');
+      const icon = document.getElementById('toggle-icon');
+      container.classList.toggle('hidden');
+      icon.classList.toggle('rotate-180');
+    });
+
+    // Recalculate total when form fields change
+    document.querySelector('[name="vehicleType"]').addEventListener('change', calculateTotal);
+    document.getElementById('service-select').addEventListener('change', calculateTotal);
+    document.getElementById('addon-select').addEventListener('change', calculateTotal);
+
+    document.getElementById('create-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const formData = new FormData(e.target);
+      const data = Object.fromEntries(formData.entries());
+      data.packageId = parseInt(data.serviceId);
+      delete data.serviceId;
+
+      // Add selected addons
+      const selectedAddons = Array.from(document.getElementById('addon-select').selectedOptions).map(o => parseInt(o.value)).filter(v => !isNaN(v));
+      if (selectedAddons.length > 0) {
+        data.addonIds = selectedAddons;
+      }
+
+      try {
+        const response = await api('/api/bookings', {
+          method: 'POST',
+          body: JSON.stringify(data)
+        });
+        const result = await response.json();
+        if (response.ok) {
+          showToast('Invoice created! Payment link: ' + result.paymentLink);
+          e.target.reset();
+          calculateTotal();
+          loadBookings();
+          loadStats();
+          // Copy payment link to clipboard
+          try {
+            await navigator.clipboard.writeText(result.paymentLink);
+            showToast('Payment link copied to clipboard');
+          } catch (err) {}
+        } else {
+          showToast(result.error || 'Failed to create invoice', 'error');
+        }
+      } catch (err) {
+        showToast('Failed to create invoice', 'error');
+      }
+    });
+
+    document.getElementById('edit-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const id = document.getElementById('edit-id').value;
+      const data = {
+        customerName: document.getElementById('edit-name').value,
+        customerEmail: document.getElementById('edit-email').value,
+        customerPhone: document.getElementById('edit-phone').value,
+        vehicleType: document.getElementById('edit-vehicle').value,
+        bookingDate: document.getElementById('edit-date').value,
+        bookingTime: document.getElementById('edit-time').value,
+        totalAmount: parseFloat(document.getElementById('edit-total').value),
+        depositAmount: parseFloat(document.getElementById('edit-deposit').value),
+        status: document.getElementById('edit-status').value,
+        address: document.getElementById('edit-address').value,
+        notes: document.getElementById('edit-notes').value
+      };
+
+      try {
+        const response = await api('/api/bookings/' + id, {
+          method: 'PUT',
+          body: JSON.stringify(data)
+        });
+        if (response.ok) {
+          showToast('Booking updated');
+          document.getElementById('edit-modal').classList.add('hidden');
+          document.getElementById('edit-modal').classList.remove('flex');
+          loadBookings();
+          loadStats();
+        } else {
+          const result = await response.json();
+          showToast(result.error || 'Failed to update', 'error');
+        }
+      } catch (err) {
+        showToast('Failed to update booking', 'error');
+      }
+    });
+
+    // Close modals
+    ['edit-close', 'edit-cancel-btn'].forEach(id => {
+      document.getElementById(id).addEventListener('click', () => {
+        document.getElementById('edit-modal').classList.add('hidden');
+        document.getElementById('edit-modal').classList.remove('flex');
+      });
+    });
+
+    ['view-close', 'view-close-btn'].forEach(id => {
+      document.getElementById(id).addEventListener('click', () => {
+        document.getElementById('view-modal').classList.add('hidden');
+        document.getElementById('view-modal').classList.remove('flex');
+      });
+    });
+
+    document.getElementById('view-edit-btn').addEventListener('click', () => {
+      document.getElementById('view-modal').classList.add('hidden');
+      document.getElementById('view-modal').classList.remove('flex');
+      if (currentViewBooking) editBooking(currentViewBooking.id);
+    });
+
+    // Search and filter
+    let searchTimeout;
+    document.getElementById('search-input').addEventListener('input', () => {
+      clearTimeout(searchTimeout);
+      searchTimeout = setTimeout(applyFilters, 300);
+    });
+
+    document.getElementById('filter-status').addEventListener('change', applyFilters);
+    document.getElementById('filter-payment').addEventListener('change', applyFilters);
+    document.getElementById('refresh-btn').addEventListener('click', () => {
+      loadBookings();
+      loadStats();
+    });
+
+    // Pagination
+    document.getElementById('prev-page').addEventListener('click', () => {
+      if (currentPage > 1) {
+        currentPage--;
+        renderBookings();
+      }
+    });
+
+    document.getElementById('next-page').addEventListener('click', () => {
+      const totalPages = Math.ceil(filteredBookings.length / perPage);
+      if (currentPage < totalPages) {
+        currentPage++;
+        renderBookings();
+      }
+    });
+
+    // Sorting
+    document.querySelectorAll('[data-sort]').forEach(th => {
+      th.addEventListener('click', () => {
+        const col = th.dataset.sort;
+        if (sortColumn === col) {
+          sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+        } else {
+          sortColumn = col;
+          sortDirection = 'desc';
+        }
+        applyFilters();
+      });
+    });
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        document.getElementById('edit-modal').classList.add('hidden');
+        document.getElementById('edit-modal').classList.remove('flex');
+        document.getElementById('view-modal').classList.add('hidden');
+        document.getElementById('view-modal').classList.remove('flex');
+        document.getElementById('confirm-modal').classList.add('hidden');
+        document.getElementById('confirm-modal').classList.remove('flex');
+      }
+    });
+
+    // Auto-refresh every 60 seconds
+    setInterval(() => {
+      loadBookings();
+      loadStats();
+    }, 60000);
+
+    // Initialize
+    loadServices();
+    loadAddons();
+    loadStats();
+    loadBookings();
+  </script>
+</Layout>

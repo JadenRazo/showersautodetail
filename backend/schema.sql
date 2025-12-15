@@ -48,6 +48,7 @@ CREATE TABLE IF NOT EXISTS bookings (
     deposit_paid BOOLEAN DEFAULT false,
     deposit_payment_id VARCHAR(255),
     final_payment_id VARCHAR(255),
+    payment_token VARCHAR(32),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -234,6 +235,8 @@ CREATE TABLE IF NOT EXISTS admin_users (
     password_hash VARCHAR(255) NOT NULL,
     name VARCHAR(200),
     role VARCHAR(50) DEFAULT 'admin',
+    totp_secret VARCHAR(64),
+    totp_enabled BOOLEAN DEFAULT false,
     is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -250,6 +253,17 @@ CREATE TABLE IF NOT EXISTS refresh_tokens (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Google Reviews Cache
+-- Stores fetched Google Places reviews to reduce API calls
+CREATE TABLE IF NOT EXISTS google_reviews_cache (
+    id SERIAL PRIMARY KEY,
+    place_id VARCHAR(255) NOT NULL UNIQUE,
+    overall_rating DECIMAL(2, 1),
+    total_reviews INTEGER,
+    reviews_data JSONB NOT NULL,
+    cached_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Create indexes for better query performance
 CREATE INDEX IF NOT EXISTS idx_bookings_date ON bookings(booking_date);
 CREATE INDEX IF NOT EXISTS idx_bookings_status ON bookings(status);
@@ -258,3 +272,4 @@ CREATE INDEX IF NOT EXISTS idx_gallery_featured ON gallery_photos(is_featured);
 CREATE INDEX IF NOT EXISTS idx_refresh_tokens_hash ON refresh_tokens(token_hash);
 CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user ON refresh_tokens(user_id);
 CREATE INDEX IF NOT EXISTS idx_admin_users_email ON admin_users(email);
+CREATE INDEX IF NOT EXISTS idx_google_reviews_place ON google_reviews_cache(place_id);
