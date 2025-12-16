@@ -48,6 +48,7 @@ CREATE TABLE IF NOT EXISTS bookings (
     deposit_paid BOOLEAN DEFAULT false,
     deposit_payment_id VARCHAR(255),
     final_payment_id VARCHAR(255),
+    final_paid BOOLEAN DEFAULT false,
     payment_token VARCHAR(32),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -64,6 +65,7 @@ CREATE TABLE IF NOT EXISTS quote_requests (
     estimated_price DECIMAL(10, 2),
     message TEXT,
     status VARCHAR(50) DEFAULT 'new',
+    selected_addons JSONB DEFAULT '[]'::jsonb,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -273,3 +275,34 @@ CREATE INDEX IF NOT EXISTS idx_refresh_tokens_hash ON refresh_tokens(token_hash)
 CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user ON refresh_tokens(user_id);
 CREATE INDEX IF NOT EXISTS idx_admin_users_email ON admin_users(email);
 CREATE INDEX IF NOT EXISTS idx_google_reviews_place ON google_reviews_cache(place_id);
+
+-- Custom line items for invoices (admin-defined charges)
+CREATE TABLE IF NOT EXISTS custom_line_items (
+    id SERIAL PRIMARY KEY,
+    booking_id INTEGER REFERENCES bookings(id) ON DELETE CASCADE,
+    name VARCHAR(200) NOT NULL,
+    price DECIMAL(10, 2) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Coupon codes for discounts
+CREATE TABLE IF NOT EXISTS coupons (
+    id SERIAL PRIMARY KEY,
+    code VARCHAR(50) UNIQUE NOT NULL,
+    discount_type VARCHAR(20) NOT NULL, -- 'percent' or 'fixed'
+    discount_value DECIMAL(10, 2) NOT NULL,
+    max_uses INTEGER, -- NULL = unlimited
+    used_count INTEGER DEFAULT 0,
+    is_active BOOLEAN DEFAULT true,
+    expires_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Add coupon tracking to bookings
+ALTER TABLE bookings ADD COLUMN IF NOT EXISTS coupon_code VARCHAR(50);
+ALTER TABLE bookings ADD COLUMN IF NOT EXISTS coupon_discount DECIMAL(10, 2) DEFAULT 0;
+
+-- Indexes for new tables
+CREATE INDEX IF NOT EXISTS idx_custom_line_items_booking ON custom_line_items(booking_id);
+CREATE INDEX IF NOT EXISTS idx_coupons_code ON coupons(code);
+CREATE INDEX IF NOT EXISTS idx_coupons_active ON coupons(is_active);

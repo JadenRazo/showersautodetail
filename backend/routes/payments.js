@@ -129,6 +129,10 @@ router.post('/create-final-payment', async (req, res) => {
       return res.status(400).json({ error: 'Deposit must be paid first' });
     }
 
+    if (booking.final_paid) {
+      return res.status(400).json({ error: "Final payment already completed" });
+    }
+
     const remainingAmount = booking.total_amount - booking.deposit_amount;
 
     // Create Square payment for remaining amount
@@ -154,7 +158,7 @@ router.post('/create-final-payment', async (req, res) => {
     // If payment completed immediately, update booking status
     if (paymentResult.status === 'COMPLETED') {
       await pool.query(
-        'UPDATE bookings SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+        'UPDATE bookings SET status = $1, final_paid = true, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
         ['completed', bookingId]
       );
 
@@ -241,7 +245,7 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
         } else if (paymentType === 'final') {
           // Mark booking as completed
           await pool.query(
-            'UPDATE bookings SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
+            'UPDATE bookings SET status = $1, final_paid = true, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
             ['completed', bookingId]
           );
 

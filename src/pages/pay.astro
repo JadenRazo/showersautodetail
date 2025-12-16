@@ -67,16 +67,31 @@ import Layout from '../layouts/Layout.astro';
               <span class="text-gray-500">Time</span>
               <span id="booking-time" class="font-medium text-gray-900">-</span>
             </div>
+            <div id="custom-items-container" class="hidden"></div>
             <hr class="border-gray-100">
             <div class="flex justify-between text-gray-500">
               <span>Total Service</span>
               <span id="total-amount">-</span>
+            </div>
+            <div id="discount-row" class="flex justify-between text-green-600 hidden">
+              <span>Discount (<span id="coupon-applied-code"></span>)</span>
+              <span id="discount-amount">-$0.00</span>
             </div>
             <div class="flex justify-between text-lg font-bold text-gray-900">
               <span>Deposit Due</span>
               <span id="deposit-amount" class="text-[#EB6C1D]">-</span>
             </div>
           </div>
+        </div>
+
+        <!-- Coupon Code -->
+        <div class="bg-white rounded-2xl shadow-lg p-6 mb-4">
+          <h3 class="text-sm font-medium text-gray-700 mb-2">Have a coupon code?</h3>
+          <div class="flex gap-2">
+            <input type="text" id="coupon-input" placeholder="Enter code" class="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm uppercase focus:ring-2 focus:ring-[#EB6C1D] focus:border-transparent">
+            <button id="apply-coupon-btn" type="button" class="px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white text-sm font-medium rounded-lg transition-colors">Apply</button>
+          </div>
+          <div id="coupon-message" class="mt-2 text-sm hidden"></div>
         </div>
 
         <!-- Payment Card -->
@@ -113,7 +128,7 @@ import Layout from '../layouts/Layout.astro';
           </svg>
         </div>
         <h2 class="text-2xl font-bold text-gray-900 mb-2">Payment Successful!</h2>
-        <p class="text-gray-600 mb-4">Your deposit has been received. We'll see you on your appointment date!</p>
+        <p id="success-message" class="text-gray-600 mb-4">Your deposit has been received. We'll see you on your appointment date!</p>
         <div id="success-details" class="text-left bg-gray-50 rounded-lg p-4 text-sm space-y-2 mb-4">
           <div class="flex justify-between">
             <span class="text-gray-500">Amount Paid</span>
@@ -137,11 +152,14 @@ import Layout from '../layouts/Layout.astro';
     let bookingId = null;
     let bookingToken = null;
     let depositAmount = 0;
+    let originalDepositAmount = 0;
+    let appliedCoupon = null;
 
     // Parse URL params
     const params = new URLSearchParams(window.location.search);
     bookingId = params.get('id');
     bookingToken = params.get('token');
+    let paymentType = params.get('type') || 'deposit';
 
     // DOM elements
     const loadingState = document.getElementById('loading-state');
@@ -165,7 +183,9 @@ import Layout from '../layouts/Layout.astro';
     }
 
     function formatDate(dateStr) {
-      const date = new Date(dateStr + 'T00:00:00');
+      if (!dateStr) return '-';
+      const dateOnly = dateStr.split('T')[0];
+      const date = new Date(dateOnly + 'T00:00:00');
       return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
     }
 
@@ -186,7 +206,7 @@ import Layout from '../layouts/Layout.astro';
 
       try {
         // Fetch booking info
-        const response = await fetch(`/api/bookings/${bookingId}/payment-info?token=${bookingToken}`);
+        const response = await fetch(`/api/bookings/${bookingId}/payment-info?token=${bookingToken}&type=${paymentType}`);
 
         if (!response.ok) {
           const data = await response.json();
@@ -198,7 +218,7 @@ import Layout from '../layouts/Layout.astro';
         const booking = await response.json();
 
         // Check if already paid
-        if (booking.depositPaid) {
+        if ((paymentType === "deposit" && booking.depositPaid) || (paymentType === "final" && booking.alreadyPaid)) {
           showState(paidState);
           return;
         }
@@ -212,7 +232,28 @@ import Layout from '../layouts/Layout.astro';
         document.getElementById('deposit-amount').textContent = `$${booking.depositAmount.toFixed(2)}`;
 
         depositAmount = booking.depositAmount;
+        originalDepositAmount = booking.depositAmount;
         payButton.textContent = `Pay $${depositAmount.toFixed(2)} Deposit`;
+
+        // Check if coupon already applied to booking
+        // Override for final payment type
+        if (paymentType === 'final') {
+          depositAmount = booking.remainingAmount;
+          originalDepositAmount = booking.remainingAmount;
+          payButton.textContent = `Pay $${depositAmount.toFixed(2)} Balance`;
+          document.getElementById('deposit-amount').textContent = `$${booking.remainingAmount.toFixed(2)}`;
+          document.querySelector('.bg-orange-100').textContent = 'Balance Due';
+        }
+        if (booking.couponCode && booking.couponDiscount > 0) {
+          appliedCoupon = booking.couponCode;
+          document.getElementById('coupon-applied-code').textContent = booking.couponCode;
+          document.getElementById('discount-amount').textContent = `-$${booking.couponDiscount.toFixed(2)}`;
+          document.getElementById('discount-row').classList.remove('hidden');
+          document.getElementById('coupon-input').value = booking.couponCode;
+          document.getElementById('coupon-input').disabled = true;
+          document.getElementById('apply-coupon-btn').textContent = 'Applied';
+          document.getElementById('apply-coupon-btn').disabled = true;
+        }
 
         // Initialize Square
         const payments = window.Square.payments(SQUARE_APP_ID, 'production');
@@ -228,6 +269,91 @@ import Layout from '../layouts/Layout.astro';
         showState(errorState);
       }
     }
+
+    // Coupon apply handler
+    document.getElementById('apply-coupon-btn').addEventListener('click', async () => {
+      const couponInput = document.getElementById('coupon-input');
+      const couponMessage = document.getElementById('coupon-message');
+      const code = couponInput.value.trim().toUpperCase();
+
+      if (!code) {
+        couponMessage.textContent = 'Please enter a coupon code.';
+        couponMessage.className = 'mt-2 text-sm text-red-600';
+        couponMessage.classList.remove('hidden');
+        return;
+      }
+
+      const applyBtn = document.getElementById('apply-coupon-btn');
+      applyBtn.disabled = true;
+      applyBtn.textContent = 'Checking...';
+
+      try {
+        // First validate the coupon
+        const validateResponse = await fetch('/api/coupons/validate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            code: code,
+            subtotal: originalDepositAmount * 4 // Approximate total from deposit (25%)
+          })
+        });
+
+        if (!validateResponse.ok) {
+          const data = await validateResponse.json();
+          couponMessage.textContent = data.error || 'Invalid coupon code.';
+          couponMessage.className = 'mt-2 text-sm text-red-600';
+          couponMessage.classList.remove('hidden');
+          applyBtn.disabled = false;
+          applyBtn.textContent = 'Apply';
+          return;
+        }
+
+        // Apply the coupon to the booking
+        const applyResponse = await fetch('/api/coupons/apply', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            code: code,
+            bookingId: parseInt(bookingId)
+          })
+        });
+
+        const applyData = await applyResponse.json();
+
+        if (applyResponse.ok) {
+          appliedCoupon = code;
+          depositAmount = applyData.newDeposit;
+
+          // Update UI
+          document.getElementById('coupon-applied-code').textContent = code;
+          document.getElementById('discount-amount').textContent = `-$${applyData.discountApplied.toFixed(2)}`;
+          document.getElementById('discount-row').classList.remove('hidden');
+          document.getElementById('deposit-amount').textContent = `$${depositAmount.toFixed(2)}`;
+          payButton.textContent = `Pay $${depositAmount.toFixed(2)} Deposit`;
+
+          couponMessage.textContent = `Coupon applied! You save $${applyData.discountApplied.toFixed(2)}`;
+          couponMessage.className = 'mt-2 text-sm text-green-600';
+          couponMessage.classList.remove('hidden');
+
+          couponInput.disabled = true;
+          applyBtn.textContent = 'Applied';
+        } else {
+          couponMessage.textContent = applyData.error || 'Failed to apply coupon.';
+          couponMessage.className = 'mt-2 text-sm text-red-600';
+          couponMessage.classList.remove('hidden');
+          applyBtn.disabled = false;
+          applyBtn.textContent = 'Apply';
+        }
+
+      } catch (err) {
+        console.error('Coupon error:', err);
+        couponMessage.textContent = 'Failed to apply coupon. Please try again.';
+        couponMessage.className = 'mt-2 text-sm text-red-600';
+        couponMessage.classList.remove('hidden');
+        applyBtn.disabled = false;
+        applyBtn.textContent = 'Apply';
+      }
+    });
 
     payButton.addEventListener('click', async () => {
       if (!card) return;
@@ -246,7 +372,7 @@ import Layout from '../layouts/Layout.astro';
           return;
         }
 
-        const response = await fetch('/api/payments/create-deposit-payment', {
+        const response = await fetch(`/api/payments/${paymentType === 'final' ? 'create-final-payment' : 'create-deposit-payment'}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -261,6 +387,7 @@ import Layout from '../layouts/Layout.astro';
           document.getElementById('paid-amount').textContent = `$${data.amount.toFixed(2)}`;
           document.getElementById('payment-id').textContent = data.paymentId;
           showState(successState);
+          if (paymentType === 'final') { document.getElementById('success-message').textContent = 'Your final payment has been received. Thank you for your business!'; }
         } else {
           showStatus(data.error + (data.details ? ': ' + data.details : ''), true);
           payButton.disabled = false;

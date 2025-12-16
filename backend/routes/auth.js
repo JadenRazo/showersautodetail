@@ -70,18 +70,16 @@ router.post('/login', loginValidation, async (req, res) => {
       { expiresIn: ACCESS_TOKEN_EXPIRY }
     );
 
-    // Generate refresh token if "remember me"
-    let refreshToken = null;
-    if (rememberMe) {
-      refreshToken = crypto.randomBytes(64).toString('hex');
-      const tokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
-      const expiresAt = new Date(Date.now() + REFRESH_TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000);
+    // Always generate refresh token (different expiry based on rememberMe)
+    const refreshToken = crypto.randomBytes(64).toString('hex');
+    const tokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
+    const expiryDays = rememberMe ? REFRESH_TOKEN_EXPIRY_DAYS : 1; // 30 days or 1 day
+    const expiresAt = new Date(Date.now() + expiryDays * 24 * 60 * 60 * 1000);
 
-      await pool.query(
-        'INSERT INTO refresh_tokens (user_id, token_hash, expires_at, device_info) VALUES ($1, $2, $3, $4)',
-        [user.id, tokenHash, expiresAt, req.headers['user-agent'] || 'Unknown']
-      );
-    }
+    await pool.query(
+      'INSERT INTO refresh_tokens (user_id, token_hash, expires_at, device_info) VALUES ($1, $2, $3, $4)',
+      [user.id, tokenHash, expiresAt, req.headers['user-agent'] || 'Unknown']
+    );
 
     res.json({
       accessToken,

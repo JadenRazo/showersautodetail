@@ -23,7 +23,6 @@ router.post('/', quoteLimiter, quoteValidation, async (req, res) => {
     } = req.body;
 
     // Calculate estimated price based on service level
-    // Vehicle types: sedan (Sedan/Coupe), suv (SUV/Truck), commercial (Commercial)
     const prices = {
       'exterior': { sedan: 50, suv: 60, commercial: 80 },
       'interior': { sedan: 120, suv: 160, commercial: 200 },
@@ -36,13 +35,13 @@ router.post('/', quoteLimiter, quoteValidation, async (req, res) => {
     const vehicle = vehicleType.toLowerCase();
     const estimatedPrice = totalEstimate || prices[level]?.[vehicle] || prices.exterior.sedan;
 
-    // Insert quote request
+    // Insert quote request with selected addons
     const result = await pool.query(
       `INSERT INTO quote_requests
-       (customer_name, customer_email, customer_phone, vehicle_type, service_level, estimated_price, message)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       (customer_name, customer_email, customer_phone, vehicle_type, service_level, estimated_price, message, selected_addons)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING *`,
-      [customerName, customerEmail, customerPhone, vehicleType, serviceLevel, estimatedPrice, message]
+      [customerName, customerEmail, customerPhone, vehicleType, serviceLevel, estimatedPrice, message, JSON.stringify(selectedAddons || [])]
     );
 
     // Send notification to business owner
@@ -82,6 +81,33 @@ router.get('/', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error('Error fetching quotes:', error);
     res.status(500).json({ error: 'Failed to fetch quotes' });
+  }
+});
+
+// Update quote status (admin only)
+router.patch('/:id/status', authenticateToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+    const validStatuses = ['new', 'contacted', 'converted', 'closed'];
+
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ error: 'Invalid status' });
+    }
+
+    const result = await pool.query(
+      'UPDATE quote_requests SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+      [status, id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Quote not found' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error updating quote status:', error);
+    res.status(500).json({ error: 'Failed to update quote status' });
   }
 });
 

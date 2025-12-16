@@ -160,27 +160,22 @@ ${businessName}
       `
     },
     new_booking: {
-      subject: `Booking Confirmation #${data.bookingId} - ${businessName}`,
+      subject: `Booking Confirmation - ${businessName}`,
       text: `
 Hi ${data.customerName},
 
-Your booking has been confirmed!
+Thank you for booking with ${businessName}! Your appointment is confirmed.
 
-Booking Details:
-- Booking ID: #${data.bookingId}
+Appointment Details:
 - Date: ${data.bookingDate}
 - Time: ${data.bookingTime}
 - Vehicle: ${data.vehicleType}
-- Total: $${data.totalAmount}
+- Service Total: $${data.totalAmount}
 - Deposit Paid: $${data.depositAmount}
 
-If you need to reschedule or have any questions, please contact us:
-Phone: (442) 229-5998
-Email: ${businessEmail}
+Questions? Call us at (442) 229-5998 or email at contact@showersautodetail.com.
 
-Thank you for choosing ${businessName}!
-
-Best regards,
+See you soon!
 ${businessName}
       `
     }

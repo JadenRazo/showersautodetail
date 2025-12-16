@@ -14,6 +14,7 @@ import packageRoutes from './routes/packages.js';
 import paymentRoutes from './routes/payments.js';
 import addonRoutes from './routes/addons.js';
 import googleReviewRoutes from './routes/google-reviews.js';
+import couponRoutes from './routes/coupons.js';
 
 dotenv.config();
 
@@ -57,6 +58,7 @@ app.use('/api/packages', packageRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/addons', addonRoutes);
 app.use('/api/google-reviews', googleReviewRoutes);
+app.use('/api/coupons', couponRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

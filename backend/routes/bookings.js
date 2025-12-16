@@ -24,10 +24,12 @@ router.post('/', bookingLimiter, bookingValidation, async (req, res) => {
       packageId,
       serviceId,
       addonIds,
+      customLineItems,
       bookingDate,
       bookingTime,
       address,
-      notes
+      notes,
+      sendEmail
     } = req.body;
 
     let totalAmount = 0;
@@ -104,6 +106,22 @@ router.post('/', bookingLimiter, bookingValidation, async (req, res) => {
 
     totalAmount += addonTotal;
 
+    // Calculate custom line items total
+    let customItemsTotal = 0;
+    const validCustomItems = [];
+    if (customLineItems && Array.isArray(customLineItems)) {
+      for (const item of customLineItems) {
+        if (item.name && item.price > 0) {
+          customItemsTotal += parseFloat(item.price);
+          validCustomItems.push({
+            name: item.name.substring(0, 200),
+            price: parseFloat(item.price)
+          });
+        }
+      }
+    }
+    totalAmount += customItemsTotal;
+
     // Get deposit percentage from settings
     const settingsResult = await pool.query(
       "SELECT value FROM settings WHERE key = 'deposit_percentage'"
@@ -141,23 +159,37 @@ router.post('/', bookingLimiter, bookingValidation, async (req, res) => {
       await Promise.all(addonInserts);
     }
 
-    // Send notification
-    await sendNotification({
-      type: 'new_booking',
-      data: {
-        bookingId: booking.id,
-        customerName,
-        customerEmail,
-        customerPhone,
-        vehicleType,
-        serviceName,
-        bookingDate,
-        bookingTime,
-        totalAmount,
-        depositAmount,
-        addons: addonDetails
-      }
-    });
+    // Insert custom line items
+    if (validCustomItems.length > 0) {
+      const customInserts = validCustomItems.map(item =>
+        pool.query(
+          'INSERT INTO custom_line_items (booking_id, name, price) VALUES ($1, $2, $3)',
+          [booking.id, item.name, item.price]
+        )
+      );
+      await Promise.all(customInserts);
+    }
+
+    // Send notification (unless sendEmail is explicitly false)
+    if (sendEmail !== false) {
+      await sendNotification({
+        type: 'new_booking',
+        data: {
+          bookingId: booking.id,
+          customerName,
+          customerEmail,
+          customerPhone,
+          vehicleType,
+          serviceName,
+          bookingDate,
+          bookingTime,
+          totalAmount,
+          depositAmount,
+          addons: addonDetails,
+          customItems: validCustomItems
+        }
+      });
+    }
 
     // Build payment link
     const baseUrl = process.env.APP_URL || 'https://showersautodetail.com';
@@ -169,6 +201,7 @@ router.post('/', bookingLimiter, bookingValidation, async (req, res) => {
       totalAmount: parseFloat(totalAmount.toFixed(2)),
       depositAmount: parseFloat(depositAmount.toFixed(2)),
       addons: addonDetails,
+      customItems: validCustomItems,
       paymentLink
     });
   } catch (error) {
@@ -190,6 +223,63 @@ router.get('/', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error('Error fetching bookings:', error);
     res.status(500).json({ error: 'Failed to fetch bookings' });
+  }
+});
+
+// Get booking stats (admin only) - MUST be before /:id route
+router.get('/stats/summary', authenticateToken, async (req, res) => {
+  try {
+    const totalBookings = await pool.query('SELECT COUNT(*) FROM bookings');
+
+    const pendingPayments = await pool.query(
+      'SELECT COUNT(*) FROM bookings WHERE deposit_paid = false AND status != $1',
+      ['cancelled']
+    );
+
+    const thisMonthRevenue = await pool.query(
+      'SELECT COALESCE(SUM(deposit_amount), 0) as revenue FROM bookings WHERE deposit_paid = true AND created_at >= date_trunc($1, CURRENT_DATE)',
+      ['month']
+    );
+
+    const statusCounts = await pool.query(
+      'SELECT status, COUNT(*) as count FROM bookings GROUP BY status'
+    );
+
+    res.json({
+      totalBookings: parseInt(totalBookings.rows[0].count),
+      pendingPayments: parseInt(pendingPayments.rows[0].count),
+      thisMonthRevenue: parseFloat(thisMonthRevenue.rows[0].revenue),
+      statusCounts: statusCounts.rows.reduce((acc, row) => {
+        acc[row.status] = parseInt(row.count);
+        return acc;
+      }, {})
+    });
+  } catch (error) {
+    console.error('Error fetching stats:', error);
+    res.status(500).json({ error: 'Failed to fetch stats' });
+  }
+});
+
+// Get revenue chart data (admin only) - MUST be before /:id route
+router.get('/stats/revenue-chart', authenticateToken, async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT
+        TO_CHAR(created_at::date, 'Mon DD') as date,
+        COALESCE(SUM(CASE WHEN deposit_paid = true THEN deposit_amount ELSE 0 END), 0) as revenue
+      FROM bookings
+      WHERE created_at >= CURRENT_DATE - INTERVAL '30 days'
+      GROUP BY created_at::date
+      ORDER BY created_at::date ASC
+    `);
+
+    res.json(result.rows.map(r => ({
+      date: r.date,
+      revenue: parseFloat(r.revenue)
+    })));
+  } catch (error) {
+    console.error('Error fetching revenue chart:', error);
+    res.status(500).json({ error: 'Failed to fetch revenue chart' });
   }
 });
 
@@ -221,7 +311,8 @@ router.get('/:id', idParamValidation, async (req, res) => {
 router.get('/:id/payment-info', idParamValidation, async (req, res) => {
   try {
     const { id } = req.params;
-    const { token } = req.query;
+    const { token, type } = req.query;
+    const paymentType = type || "deposit";
 
     if (!token) {
       return res.status(400).json({ error: 'Payment token required' });
@@ -229,7 +320,8 @@ router.get('/:id/payment-info', idParamValidation, async (req, res) => {
 
     const result = await pool.query(
       `SELECT b.id, b.customer_name, b.vehicle_type, b.booking_date, b.booking_time,
-              b.total_amount, b.deposit_amount, b.deposit_paid, b.payment_token,
+              b.total_amount, b.deposit_amount, b.deposit_paid, b.final_paid, b.payment_token,
+              b.coupon_code, b.coupon_discount,
               COALESCE(s.name, p.name) as service_name
        FROM bookings b
        LEFT JOIN services s ON b.service_id = s.id
@@ -249,6 +341,20 @@ router.get('/:id/payment-info', idParamValidation, async (req, res) => {
       return res.status(404).json({ error: 'Invalid payment link' });
     }
 
+    // Handle final payment type
+    if (paymentType === "final") {
+      if (!booking.deposit_paid) {
+        return res.status(400).json({ error: "Deposit must be paid first" });
+      }
+      if (booking.final_paid) {
+        return res.json({
+          id: booking.id,
+          alreadyPaid: true,
+          message: "Balance has already been paid"
+        });
+      }
+    }
+
     // Return limited info (no sensitive data)
     res.json({
       id: booking.id,
@@ -259,7 +365,12 @@ router.get('/:id/payment-info', idParamValidation, async (req, res) => {
       bookingTime: booking.booking_time,
       totalAmount: parseFloat(booking.total_amount),
       depositAmount: parseFloat(booking.deposit_amount),
-      depositPaid: booking.deposit_paid
+      depositPaid: booking.deposit_paid,
+      couponCode: booking.coupon_code || null,
+      couponDiscount: booking.coupon_discount ? parseFloat(booking.coupon_discount) : 0,
+      finalPaid: booking.final_paid,
+      remainingAmount: parseFloat(booking.total_amount) - parseFloat(booking.deposit_amount),
+      paymentType: paymentType
     });
   } catch (error) {
     console.error('Error fetching payment info:', error);
@@ -420,14 +531,26 @@ router.post('/:id/mark-paid', authenticateToken, idParamValidation, async (req, 
     const { id } = req.params;
     const { paymentId } = req.body;
 
-    const result = await pool.query(
-      'UPDATE bookings SET deposit_paid = true, deposit_payment_id = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *',
-      [paymentId || 'MANUAL_' + Date.now(), id]
+    // First check if booking exists and has a payment token
+    const checkResult = await pool.query(
+      'SELECT payment_token FROM bookings WHERE id = $1',
+      [id]
     );
 
-    if (result.rows.length === 0) {
+    if (checkResult.rows.length === 0) {
       return res.status(404).json({ error: 'Booking not found' });
     }
+
+    // Generate payment token if missing (needed for balance payment link)
+    let newToken = checkResult.rows[0].payment_token;
+    if (!newToken) {
+      newToken = crypto.randomBytes(6).toString('hex');
+    }
+
+    const result = await pool.query(
+      'UPDATE bookings SET deposit_paid = true, deposit_payment_id = $1, payment_token = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3 RETURNING *',
+      [paymentId || 'CASH_' + Date.now(), newToken, id]
+    );
 
     res.json({ success: true, booking: result.rows[0] });
   } catch (error) {
@@ -436,6 +559,41 @@ router.post('/:id/mark-paid', authenticateToken, idParamValidation, async (req, 
   }
 });
 
+
+// Manually mark final payment as paid with cash (admin only)
+router.post("/:id/mark-final-paid", authenticateToken, idParamValidation, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Check if deposit is paid first
+    const checkResult = await pool.query(
+      "SELECT deposit_paid, final_paid FROM bookings WHERE id = $1",
+      [id]
+    );
+
+    if (checkResult.rows.length === 0) {
+      return res.status(404).json({ error: "Booking not found" });
+    }
+
+    if (!checkResult.rows[0].deposit_paid) {
+      return res.status(400).json({ error: "Deposit must be paid first" });
+    }
+
+    if (checkResult.rows[0].final_paid) {
+      return res.status(400).json({ error: "Final payment already marked as paid" });
+    }
+
+    const result = await pool.query(
+      "UPDATE bookings SET final_paid = true, final_payment_id = $1, status = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3 RETURNING *",
+      ["CASH_" + Date.now(), "completed", id]
+    );
+
+    res.json({ success: true, booking: result.rows[0] });
+  } catch (error) {
+    console.error("Error marking final as paid:", error);
+    res.status(500).json({ error: "Failed to mark final payment as paid" });
+  }
+});
 // Resend payment link notification (admin only)
 router.post('/:id/resend-link', authenticateToken, idParamValidation, async (req, res) => {
   try {
@@ -484,38 +642,4 @@ router.post('/:id/resend-link', authenticateToken, idParamValidation, async (req
   }
 });
 
-// Get booking stats (admin only)
-router.get('/stats/summary', authenticateToken, async (req, res) => {
-  try {
-    const totalBookings = await pool.query('SELECT COUNT(*) FROM bookings');
-
-    const pendingPayments = await pool.query(
-      'SELECT COUNT(*) FROM bookings WHERE deposit_paid = false AND status != $1',
-      ['cancelled']
-    );
-
-    const thisMonthRevenue = await pool.query(
-      'SELECT COALESCE(SUM(deposit_amount), 0) as revenue FROM bookings WHERE deposit_paid = true AND created_at >= date_trunc($1, CURRENT_DATE)',
-      ['month']
-    );
-
-    const statusCounts = await pool.query(
-      'SELECT status, COUNT(*) as count FROM bookings GROUP BY status'
-    );
-
-    res.json({
-      totalBookings: parseInt(totalBookings.rows[0].count),
-      pendingPayments: parseInt(pendingPayments.rows[0].count),
-      thisMonthRevenue: parseFloat(thisMonthRevenue.rows[0].revenue),
-      statusCounts: statusCounts.rows.reduce((acc, row) => {
-        acc[row.status] = parseInt(row.count);
-        return acc;
-      }, {})
-    });
-  } catch (error) {
-    console.error('Error fetching stats:', error);
-    res.status(500).json({ error: 'Failed to fetch stats' });
-  }
-});
 export default router;
-
