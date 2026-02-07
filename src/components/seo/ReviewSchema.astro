@@ -1,0 +1,40 @@
+---
+interface Review {
+  author: string;
+  rating: number;
+  body: string;
+  date?: string;
+}
+
+interface Props {
+  reviews: Review[];
+}
+
+const { reviews } = Astro.props;
+
+const reviewSchemas = reviews.map(review => ({
+  "@context": "https://schema.org",
+  "@type": "Review",
+  "itemReviewed": {
+    "@type": "AutoRepair",
+    "@id": "https://showersautodetail.com/#business",
+    "name": "Showers Auto Detail"
+  },
+  "author": {
+    "@type": "Person",
+    "name": review.author
+  },
+  "reviewRating": {
+    "@type": "Rating",
+    "ratingValue": review.rating,
+    "bestRating": 5,
+    "worstRating": 1
+  },
+  "reviewBody": review.body,
+  ...(review.date && { "datePublished": review.date })
+}));
+---
+
+{reviewSchemas.map(schema => (
+  <script type="application/ld+json" set:html={JSON.stringify(schema)} />
+))}

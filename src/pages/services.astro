@@ -3,7 +3,24 @@ import Layout from '../layouts/Layout.astro';
 import TopHeader from '../components/TopHeader.astro';
 import FAQSchema from '../components/seo/FAQSchema.astro';
 import LocalBusinessSchema from '../components/seo/LocalBusinessSchema.astro';
+import BreadcrumbSchema from '../components/seo/BreadcrumbSchema.astro';
+import ServiceSchema from '../components/seo/ServiceSchema.astro';
 import BottomNav from '../components/BottomNav.astro';
+
+const breadcrumbs = [
+  { name: "Home", url: "https://showersautodetail.com/" },
+  { name: "Services & Pricing", url: "https://showersautodetail.com/services" }
+];
+
+const serviceSchemaData = [
+  { name: "Exterior Wash, Wax & Sealant", description: "Complete exterior hand wash with premium wax and sealant protection for lasting shine.", priceFrom: 50, priceTo: 80, duration: "PT1H" },
+  { name: "Interior Detail", description: "Full interior cleaning including vacuum, dashboard wipe, door panels, glass cleaning, and air freshening.", priceFrom: 120, priceTo: 200, duration: "PT1H30M" },
+  { name: "Interior Deep Cleaning", description: "Intensive interior restoration with steam cleaning, stain extraction, headliner cleaning, full sanitation, and pet hair removal.", priceFrom: 200, priceTo: 280, duration: "PT2H30M" },
+  { name: "Package Deal - Interior + Exterior", description: "Complete interior detail combined with full exterior wash, wax, and sealant. Best value for a full vehicle refresh.", priceFrom: 150, priceTo: 250, duration: "PT2H30M" },
+  { name: "Disaster Vehicle Restoration", description: "Complete vehicle restoration for cars needing serious attention. Includes deep interior, full exterior, headlight restoration, and ozone treatment.", priceFrom: 230, priceTo: 310, duration: "PT4H" },
+  { name: "Ceramic Spray Coating", description: "3-6 month premium paint protection coating that repels water, dirt, and UV damage.", priceFrom: 75, priceTo: 120 },
+  { name: "Paint Correction", description: "Remove swirl marks, light scratches, and oxidation for a flawless, mirror-like finish.", priceFrom: 150, priceTo: 250 }
+];
 
 const services = [
   {
@@ -46,10 +63,13 @@ const services = [
 
 const faqs = [
   { question: "What's the difference between Interior Detail and DEEP Cleaning?", answer: "Interior Detail is our standard interior service - great for regular maintenance. Deep Cleaning is for vehicles that need extra attention: heavy stains, pet hair, odors, or vehicles that have not been detailed in a long time. Deep Cleaning includes steam cleaning, stain extraction, and more intensive treatment." },
-  { question: "Do you come to my location?", answer: "Yes! We are a mobile detailing service. We come to your home, office, or wherever your vehicle is located within our service area (San Bernardino County, Orange County, Los Angeles County, and Riverside County)." },
+  { question: "Do you come to my location?", answer: "Yes! We are a mobile detailing service. We come to your home, office, or wherever your vehicle is located within our service area (San Bernardino County, Orange County, Los Angeles County, and Riverside County). We serve cities including Victorville, Hesperia, Apple Valley, Rancho Cucamonga, Ontario, and more." },
   { question: "What do I need to provide?", answer: "Just access to a water source and electrical outlet if possible. We bring all our own equipment, products, and supplies. If water/power access is limited, let us know and we can make arrangements." },
   { question: "How long does detailing take?", answer: "Service times vary by package and vehicle size. Exterior services take about 1 hour, Interior Detail about 1.5 hours, and full packages 2.5-4 hours. We will give you an accurate estimate when you book." },
-  { question: "What payment methods do you accept?", answer: "We accept all major credit cards, debit cards, and cash. A 25% deposit is required to secure your booking, with the balance due upon completion." }
+  { question: "What payment methods do you accept?", answer: "We accept all major credit cards, debit cards, and cash. A 25% deposit is required to secure your booking, with the balance due upon completion." },
+  { question: "How much does mobile car detailing cost?", answer: "Our prices start at $50 for a sedan exterior wash and go up to $310 for a full disaster vehicle restoration on commercial vehicles. Most customers choose our Package Deal (interior + exterior) starting at $150 for sedans. Check our pricing cards above for detailed per-service breakdowns." },
+  { question: "Do you use eco-friendly products?", answer: "Yes. We use biodegradable, environmentally responsible cleaning products that are safe for your vehicle and the environment. Our waterless and low-water techniques also help conserve water compared to traditional car washes." },
+  { question: "How often should I get my car detailed?", answer: "For most drivers, a full detail every 3-4 months keeps your vehicle in great shape. If you park outdoors or have pets, every 2-3 months is ideal. Regular exterior washes every 2-4 weeks between details help maintain the finish." }
 ];
 
 const addons = {
@@ -74,18 +94,23 @@ const addons = {
 };
 ---
 
-<Layout title="Auto Detailing Services & Pricing - Showers Auto Detail">
+<Layout
+  title="Auto Detailing Services & Pricing - Showers Auto Detail"
+  description="Mobile auto detailing prices starting at $50. Interior detail, exterior wash, ceramic coating, paint correction & more. Serving San Bernardino, Orange, LA & Riverside counties. Book online today."
+>
   <LocalBusinessSchema includeServices={true} />
   <FAQSchema faqs={faqs} />
+  <BreadcrumbSchema items={breadcrumbs} />
+  <ServiceSchema services={serviceSchemaData} />
   <TopHeader />
 
   <main class="min-h-screen bg-gray-50">
     <!-- Hero Section -->
     <section class="gradient-primary py-16 text-white">
       <div class="container mx-auto px-4 text-center">
-        <h1 class="text-4xl md:text-5xl font-bold mb-4">Services & Pricing</h1>
+        <h1 class="text-4xl md:text-5xl font-bold mb-4">Mobile Auto Detailing Services & Pricing</h1>
         <p class="text-xl text-orange-100 max-w-2xl mx-auto">
-          Transparent pricing with no hidden fees. Choose the service that fits your needs.
+          Transparent pricing with no hidden fees. Professional detailing at your doorstep in Southern California.
         </p>
       </div>
     </section>
@@ -300,6 +325,33 @@ const addons = {
             </summary>
             <div class="px-6 pb-4 text-gray-600">
               We accept all major credit cards, debit cards, and cash. A 25% deposit is required to secure your booking, with the balance due upon completion.
+            </div>
+          </details>
+
+          <details class="bg-white rounded-lg shadow-sm">
+            <summary class="px-6 py-4 cursor-pointer font-semibold text-gray-900 hover:text-[#EB6C1D]">
+              How much does mobile car detailing cost?
+            </summary>
+            <div class="px-6 pb-4 text-gray-600">
+              Our prices start at $50 for a sedan exterior wash and go up to $310 for a full disaster vehicle restoration on commercial vehicles. Most customers choose our Package Deal (interior + exterior) starting at $150 for sedans. Check our pricing cards above for detailed per-service breakdowns.
+            </div>
+          </details>
+
+          <details class="bg-white rounded-lg shadow-sm">
+            <summary class="px-6 py-4 cursor-pointer font-semibold text-gray-900 hover:text-[#EB6C1D]">
+              Do you use eco-friendly products?
+            </summary>
+            <div class="px-6 pb-4 text-gray-600">
+              Yes. We use biodegradable, environmentally responsible cleaning products that are safe for your vehicle and the environment. Our waterless and low-water techniques also help conserve water compared to traditional car washes.
+            </div>
+          </details>
+
+          <details class="bg-white rounded-lg shadow-sm">
+            <summary class="px-6 py-4 cursor-pointer font-semibold text-gray-900 hover:text-[#EB6C1D]">
+              How often should I get my car detailed?
+            </summary>
+            <div class="px-6 pb-4 text-gray-600">
+              For most drivers, a full detail every 3-4 months keeps your vehicle in great shape. If you park outdoors or have pets, every 2-3 months is ideal. Regular exterior washes every 2-4 weeks between details help maintain the finish.
             </div>
           </details>
         </div>

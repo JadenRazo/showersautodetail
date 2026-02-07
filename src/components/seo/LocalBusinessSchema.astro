@@ -17,10 +17,24 @@ const businessSchema = {
   "telephone": "+1-442-229-5998",
   "email": "contact@showersauto.com",
   "logo": "https://showersautodetail.com/favicon.svg",
-  "image": "https://showersautodetail.com/images/og-image.jpg",
+  "image": [
+    "https://showersautodetail.com/images/og-image.jpg",
+    "https://showersautodetail.com/images/og-default.jpg"
+  ],
   "priceRange": "$$",
   "currenciesAccepted": "USD",
-  "paymentAccepted": "Credit Card, Debit Card",
+  "paymentAccepted": "Credit Card, Debit Card, Cash",
+  "address": {
+    "@type": "PostalAddress",
+    "addressLocality": "Victorville",
+    "addressRegion": "CA",
+    "addressCountry": "US"
+  },
+  "geo": {
+    "@type": "GeoCoordinates",
+    "latitude": "34.5362",
+    "longitude": "-117.2928"
+  },
   "openingHoursSpecification": [
     {
       "@type": "OpeningHoursSpecification",
@@ -54,6 +68,17 @@ const businessSchema = {
   "sameAs": [
     "https://www.yelp.com/biz/showers-auto-detailing-victorville"
   ],
+  "potentialAction": {
+    "@type": "ReserveAction",
+    "target": {
+      "@type": "EntryPoint",
+      "urlTemplate": "https://showersautodetail.com/#quote"
+    },
+    "result": {
+      "@type": "Reservation",
+      "name": "Book Mobile Detailing"
+    }
+  },
   ...(includeServices && {
     "hasOfferCatalog": {
       "@type": "OfferCatalog",
@@ -63,24 +88,84 @@ const businessSchema = {
           "@type": "Offer",
           "itemOffered": {
             "@type": "Service",
-            "name": "Basic Wash",
-            "description": "Exterior hand wash with tire and wheel cleaning"
+            "name": "Exterior Wash/Wax/Sealant",
+            "description": "Complete exterior hand wash with premium wax and sealant protection"
+          },
+          "priceSpecification": {
+            "@type": "PriceSpecification",
+            "priceCurrency": "USD",
+            "minPrice": "50",
+            "maxPrice": "80"
           }
         },
         {
           "@type": "Offer",
           "itemOffered": {
             "@type": "Service",
-            "name": "Full Detail",
-            "description": "Complete interior and exterior detailing service"
+            "name": "Interior Detail",
+            "description": "Full interior cleaning including vacuum, dashboard wipe, glass cleaning, and air freshening"
+          },
+          "priceSpecification": {
+            "@type": "PriceSpecification",
+            "priceCurrency": "USD",
+            "minPrice": "120",
+            "maxPrice": "200"
           }
         },
         {
           "@type": "Offer",
           "itemOffered": {
             "@type": "Service",
-            "name": "Ceramic Coating",
-            "description": "Premium ceramic paint protection"
+            "name": "Interior Deep Cleaning",
+            "description": "Intensive interior restoration with steam cleaning, stain extraction, and full sanitation"
+          },
+          "priceSpecification": {
+            "@type": "PriceSpecification",
+            "priceCurrency": "USD",
+            "minPrice": "200",
+            "maxPrice": "280"
+          }
+        },
+        {
+          "@type": "Offer",
+          "itemOffered": {
+            "@type": "Service",
+            "name": "Package Deal",
+            "description": "Interior Detail combined with Full Exterior for the best value"
+          },
+          "priceSpecification": {
+            "@type": "PriceSpecification",
+            "priceCurrency": "USD",
+            "minPrice": "150",
+            "maxPrice": "250"
+          }
+        },
+        {
+          "@type": "Offer",
+          "itemOffered": {
+            "@type": "Service",
+            "name": "Ceramic Spray Coating",
+            "description": "3-6 month premium paint protection coating"
+          },
+          "priceSpecification": {
+            "@type": "PriceSpecification",
+            "priceCurrency": "USD",
+            "minPrice": "75",
+            "maxPrice": "120"
+          }
+        },
+        {
+          "@type": "Offer",
+          "itemOffered": {
+            "@type": "Service",
+            "name": "Paint Correction",
+            "description": "Remove swirl marks and light scratches for a flawless finish"
+          },
+          "priceSpecification": {
+            "@type": "PriceSpecification",
+            "priceCurrency": "USD",
+            "minPrice": "150",
+            "maxPrice": "250"
           }
         }
       ]

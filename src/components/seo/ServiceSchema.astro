@@ -1,0 +1,48 @@
+---
+interface ServiceOffer {
+  name: string;
+  description: string;
+  priceFrom: number;
+  priceTo: number;
+  duration?: string;
+}
+
+interface Props {
+  services: ServiceOffer[];
+}
+
+const { services } = Astro.props;
+
+const serviceSchemas = services.map(service => ({
+  "@context": "https://schema.org",
+  "@type": "Service",
+  "serviceType": "Auto Detailing",
+  "name": service.name,
+  "description": service.description,
+  "provider": {
+    "@type": "AutoRepair",
+    "@id": "https://showersautodetail.com/#business",
+    "name": "Showers Auto Detail"
+  },
+  "areaServed": [
+    { "@type": "County", "name": "San Bernardino County", "containedInPlace": { "@type": "State", "name": "California" } },
+    { "@type": "County", "name": "Orange County", "containedInPlace": { "@type": "State", "name": "California" } },
+    { "@type": "County", "name": "Los Angeles County", "containedInPlace": { "@type": "State", "name": "California" } },
+    { "@type": "County", "name": "Riverside County", "containedInPlace": { "@type": "State", "name": "California" } }
+  ],
+  "offers": {
+    "@type": "AggregateOffer",
+    "priceCurrency": "USD",
+    "lowPrice": service.priceFrom,
+    "highPrice": service.priceTo,
+    "offerCount": 3
+  },
+  ...(service.duration && {
+    "estimatedDuration": service.duration
+  })
+}));
+---
+
+{serviceSchemas.map(schema => (
+  <script type="application/ld+json" set:html={JSON.stringify(schema)} />
+))}

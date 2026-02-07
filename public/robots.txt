@@ -7,14 +7,9 @@ Allow: /
 # Sitemaps
 Sitemap: https://showersautodetail.com/sitemap-index.xml
 
-# Crawl-delay for polite crawling
-Crawl-delay: 1
-
-# Block utility and API routes
+# Block utility, API, and admin routes
 Disallow: /api/
 Disallow: /admin/
+Disallow: /manage/
 Disallow: /pay
 Disallow: /test-payment
-
-# Allow search engines to index all public content
-Allow: /services

@@ -7,14 +7,31 @@ import QuoteCalculator from '../components/QuoteCalculator';
 import ReviewsSection from '../components/ReviewsSection';
 import GallerySectionClient from '../components/GallerySectionClient';
 import LocalBusinessSchema from '../components/seo/LocalBusinessSchema.astro';
+import BreadcrumbSchema from '../components/seo/BreadcrumbSchema.astro';
+import ReviewSchema from '../components/seo/ReviewSchema.astro';
 import ServiceAreaMap from '../components/ServiceAreaMap';
 
 // Import hero image for optimization
 import heroImage from '../assets/images/hero-clean-car.jpg';
+
+const homeBreadcrumbs = [
+  { name: "Home", url: "https://showersautodetail.com/" }
+];
+
+const featuredReviews = [
+  { author: "Sarah M.", rating: 5, body: "Best mobile detailing service in the Inland Empire. My car looks brand new after their interior deep cleaning.", date: "2025-01-15" },
+  { author: "James K.", rating: 5, body: "They came right to my office in Victorville and detailed my SUV while I worked. Incredible convenience and quality.", date: "2025-02-20" },
+  { author: "Maria L.", rating: 5, body: "Got the package deal for my sedan - interior and exterior. Worth every penny. The ceramic coating add-on keeps it looking fresh weeks later.", date: "2025-03-10" }
+];
 ---
 
-<Layout title="Showers Auto Detail - Professional Mobile Car Detailing in Southern California">
+<Layout
+  title="Showers Auto Detail - Professional Mobile Car Detailing in Southern California"
+  description="Mobile auto detailing in San Bernardino, Orange, Los Angeles & Riverside counties. Interior cleaning, exterior wash, ceramic coating, and paint correction. Book online or call (442) 229-5998."
+>
   <LocalBusinessSchema />
+  <BreadcrumbSchema items={homeBreadcrumbs} />
+  <ReviewSchema reviews={featuredReviews} />
   <TopHeader />
 
   <main class="min-h-screen">
@@ -24,7 +41,7 @@ import heroImage from '../assets/images/hero-clean-car.jpg';
       <div class="absolute inset-0">
         <Image
           src={heroImage}
-          alt="Professional auto detailing showcase"
+          alt="Professional mobile car detailing results by Showers Auto Detail in Southern California"
           class="w-full h-full object-cover"
           widths={[640, 960, 1280, 1920]}
           sizes="100vw"
@@ -40,23 +57,23 @@ import heroImage from '../assets/images/hero-clean-car.jpg';
       <div class="relative container mx-auto px-4 h-full flex items-center">
         <div class="max-w-2xl text-white hero-text-shadow">
           <h1 class="text-4xl md:text-6xl font-bold mb-4 text-balance">
-            Your Car Deserves The Best
+            Professional Mobile Auto Detailing in Southern California
           </h1>
           <p class="text-xl md:text-2xl mb-8 text-white/90">
-            Professional mobile detailing that comes to you. Premium service, unbeatable results.
+            We come to you in San Bernardino, Orange, LA & Riverside counties. Premium detailing, ceramic coating & interior cleaning.
           </p>
           <div class="flex flex-col sm:flex-row gap-4">
             <a
               href="#book"
               class="px-8 py-4 bg-[#EB6C1D] hover:bg-[#D35E14] rounded-full font-semibold text-lg text-center transition-colors"
             >
-              Book Now
+              Book Mobile Detailing
             </a>
             <a
               href="#quote"
               class="px-8 py-4 bg-white/20 hover:bg-white/30 backdrop-blur-sm rounded-full font-semibold text-lg text-center transition-colors"
             >
-              Get Quote
+              Get Instant Quote
             </a>
           </div>
         </div>
@@ -81,7 +98,7 @@ import heroImage from '../assets/images/hero-clean-car.jpg';
               </svg>
             </div>
             <h3 class="text-xl font-bold mb-2">We Come To You</h3>
-            <p class="text-gray-600">Mobile service at your home or office</p>
+            <p class="text-gray-600">Mobile service at your home or office across Victorville, Hesperia, Apple Valley, Rancho Cucamonga & beyond</p>
           </div>
 
           <div class="text-center">
