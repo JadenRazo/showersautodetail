@@ -3,10 +3,12 @@ import { useState, useRef, useCallback, useEffect, type MouseEvent, type TouchEv
 interface Props {
   beforeImage: string;
   afterImage: string;
+  beforeWebp?: string;
+  afterWebp?: string;
   alt?: string;
 }
 
-export default function BeforeAfterSliderClient({ beforeImage, afterImage, alt = "Before and after detailing" }: Props) {
+export default function BeforeAfterSliderClient({ beforeImage, afterImage, beforeWebp, afterWebp, alt = "Before and after detailing" }: Props) {
   const [sliderPosition, setSliderPosition] = useState(50);
   const [isDragging, setIsDragging] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -89,28 +91,38 @@ export default function BeforeAfterSliderClient({ beforeImage, afterImage, alt =
       onTouchEnd={handleTouchEnd}
     >
       {/* After Image (Background) */}
-      <img
-        src={afterImage}
-        alt={`${alt} - after`}
-        className="absolute inset-0 w-full h-full object-cover"
-        draggable="false"
-        loading="lazy"
-        decoding="async"
-      />
+      <picture>
+        {afterWebp && <source srcSet={afterWebp} type="image/webp" />}
+        <img
+          src={afterImage}
+          alt={`${alt} - after`}
+          className="absolute inset-0 w-full h-full object-cover"
+          draggable="false"
+          loading="lazy"
+          decoding="async"
+          width={800}
+          height={600}
+        />
+      </picture>
 
       {/* Before Image (Overlay) */}
       <div
         className="absolute inset-0 overflow-hidden"
         style={{ clipPath: `inset(0 ${100 - sliderPosition}% 0 0)` }}
       >
-        <img
-          src={beforeImage}
-          alt={`${alt} - before`}
-          className="absolute inset-0 w-full h-full object-cover"
-          draggable="false"
-          loading="lazy"
-          decoding="async"
-        />
+        <picture>
+          {beforeWebp && <source srcSet={beforeWebp} type="image/webp" />}
+          <img
+            src={beforeImage}
+            alt={`${alt} - before`}
+            className="absolute inset-0 w-full h-full object-cover"
+            draggable="false"
+            loading="lazy"
+            decoding="async"
+            width={800}
+            height={600}
+          />
+        </picture>
       </div>
 
       {/* Slider Line */}

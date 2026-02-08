@@ -6,16 +6,23 @@ interface GalleryPhoto {
   title: string;
   before_image_url: string;
   after_image_url: string;
+  before_webp_url?: string;
+  after_webp_url?: string;
   vehicle_type: string;
 }
 
-// Default fallback photos - uses local images
+function toWebpUrl(url: string): string {
+  return url.replace(/\.jpg$/i, '.webp');
+}
+
 const defaultFallbackPhotos: GalleryPhoto[] = [
   {
     id: 1,
     title: 'Car Seat Cleaning',
     before_image_url: '/images/gallery/seat-before.jpg',
     after_image_url: '/images/gallery/seat-after.jpg',
+    before_webp_url: '/images/gallery/seat-before.webp',
+    after_webp_url: '/images/gallery/seat-after.webp',
     vehicle_type: 'interior'
   },
   {
@@ -23,6 +30,8 @@ const defaultFallbackPhotos: GalleryPhoto[] = [
     title: 'Gear Shifter Cleaning',
     before_image_url: '/images/gallery/shifter-before.jpg',
     after_image_url: '/images/gallery/shifter-after.jpg',
+    before_webp_url: '/images/gallery/shifter-before.webp',
+    after_webp_url: '/images/gallery/shifter-after.webp',
     vehicle_type: 'interior'
   },
   {
@@ -30,6 +39,8 @@ const defaultFallbackPhotos: GalleryPhoto[] = [
     title: 'Car Seat Deep Clean',
     before_image_url: '/images/gallery/seat2-before.jpg',
     after_image_url: '/images/gallery/seat2-after.jpg',
+    before_webp_url: '/images/gallery/seat2-before.webp',
+    after_webp_url: '/images/gallery/seat2-after.webp',
     vehicle_type: 'interior'
   }
 ];
@@ -80,6 +91,8 @@ export default function GallerySectionClient({ fallbackPhotos = defaultFallbackP
           <BeforeAfterSliderClient
             beforeImage={photo.before_image_url}
             afterImage={photo.after_image_url}
+            beforeWebp={photo.before_webp_url || toWebpUrl(photo.before_image_url)}
+            afterWebp={photo.after_webp_url || toWebpUrl(photo.after_image_url)}
             alt={photo.title}
           />
           <div className="text-center">
