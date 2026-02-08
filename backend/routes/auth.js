@@ -1,6 +1,7 @@
 import express from 'express';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
+import bcrypt from 'bcryptjs';
 import pool from '../config/database.js';
 import { authenticator } from 'otplib';
 import QRCode from 'qrcode';
@@ -11,26 +12,23 @@ const router = express.Router();
 
 const ACCESS_TOKEN_EXPIRY = '15m';
 const REFRESH_TOKEN_EXPIRY_DAYS = 30;
+const BCRYPT_ROUNDS = parseInt(process.env.BCRYPT_ROUNDS || '12', 10);
 
-// Login - uses environment variables for credentials
 router.post('/login', loginValidation, async (req, res) => {
   const { email, password, rememberMe = false, totpCode } = req.body;
 
   try {
-    // Check credentials against environment variables
     const adminEmail = process.env.ADMIN_EMAIL;
     const adminPassword = process.env.ADMIN_PASSWORD;
 
     if (!adminEmail || !adminPassword) {
-      console.error('ADMIN_EMAIL or ADMIN_PASSWORD not set in environment');
       return res.status(500).json({ error: 'Server configuration error' });
     }
 
-    if (email !== adminEmail || password !== adminPassword) {
+    if (email !== adminEmail) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    // Check if 2FA is enabled (stored in admin_users table)
     let user = null;
     const userResult = await pool.query(
       'SELECT * FROM admin_users WHERE email = $1',
@@ -40,27 +38,40 @@ router.post('/login', loginValidation, async (req, res) => {
     if (userResult.rows.length > 0) {
       user = userResult.rows[0];
 
-      // Check 2FA if enabled
-      if (user.totp_enabled && user.totp_secret) {
-        if (!totpCode) {
-          return res.status(200).json({
-            requiresTwoFactor: true,
-            message: 'Please enter your 2FA code'
-          });
-        }
-
-        const isValidCode = authenticator.verify({ token: totpCode, secret: user.totp_secret });
-        if (!isValidCode) {
-          return res.status(401).json({ error: 'Invalid 2FA code' });
-        }
+      if (user.password_hash === 'ENV_MANAGED') {
+        const hashedPassword = await bcrypt.hash(adminPassword, BCRYPT_ROUNDS);
+        await pool.query(
+          'UPDATE admin_users SET password_hash = $1 WHERE id = $2',
+          [hashedPassword, user.id]
+        );
+        user.password_hash = hashedPassword;
       }
     } else {
-      // Auto-create admin user entry for 2FA support
+      const hashedPassword = await bcrypt.hash(adminPassword, BCRYPT_ROUNDS);
       const result = await pool.query(
         'INSERT INTO admin_users (email, password_hash, name, role) VALUES ($1, $2, $3, $4) RETURNING *',
-        [adminEmail, 'ENV_MANAGED', 'Admin', 'admin']
+        [adminEmail, hashedPassword, 'Admin', 'admin']
       );
       user = result.rows[0];
+    }
+
+    const isValidPassword = await bcrypt.compare(password, user.password_hash);
+    if (!isValidPassword) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    if (user.totp_enabled && user.totp_secret) {
+      if (!totpCode) {
+        return res.status(200).json({
+          requiresTwoFactor: true,
+          message: 'Please enter your 2FA code'
+        });
+      }
+
+      const isValidCode = authenticator.verify({ token: totpCode, secret: user.totp_secret });
+      if (!isValidCode) {
+        return res.status(401).json({ error: 'Invalid 2FA code' });
+      }
     }
 
     // Generate access token

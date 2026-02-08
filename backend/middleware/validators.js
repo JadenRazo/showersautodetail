@@ -54,8 +54,13 @@ export const bookingValidation = [
     .isIn(['sedan', 'suv', 'commercial'])
     .withMessage('Vehicle type must be sedan, suv, or commercial'),
   body('packageId')
+    .optional()
     .isInt({ min: 1 })
     .withMessage('Valid package ID is required'),
+  body('serviceId')
+    .optional()
+    .isInt({ min: 1 })
+    .withMessage('Valid service ID is required'),
   body('bookingDate')
     .isISO8601()
     .withMessage('Valid date is required')

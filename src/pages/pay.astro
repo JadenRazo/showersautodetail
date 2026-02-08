@@ -1,5 +1,8 @@
 ---
 import Layout from '../layouts/Layout.astro';
+
+const squareAppId = import.meta.env.PUBLIC_SQUARE_APP_ID || '';
+const squareEnv = import.meta.env.PUBLIC_SQUARE_ENVIRONMENT || 'sandbox';
 ---
 
 <Layout title="Complete Your Payment - Showers Auto Detail" noindex={true}>
@@ -145,8 +148,9 @@ import Layout from '../layouts/Layout.astro';
   </div>
 
   <script src="https://web.squarecdn.com/v1/square.js"></script>
-  <script is:inline>
-    const SQUARE_APP_ID = 'sq0idp-RKJl6aCgvx1RRVzK7jIrQw';
+  <script define:vars={{ squareAppId, squareEnv }}>
+    const SQUARE_APP_ID = squareAppId;
+    const SQUARE_ENVIRONMENT = squareEnv;
 
     let card = null;
     let bookingId = null;
@@ -256,7 +260,7 @@ import Layout from '../layouts/Layout.astro';
         }
 
         // Initialize Square
-        const payments = window.Square.payments(SQUARE_APP_ID, 'production');
+        const payments = window.Square.payments(SQUARE_APP_ID, SQUARE_ENVIRONMENT);
         card = await payments.card();
         await card.attach('#card-container');
 

@@ -8,9 +8,8 @@ import { authenticateToken } from '../middleware/auth.js';
 
 const router = express.Router();
 
-// Generate secure payment token (12-char hex = 48 bits of entropy)
 function generatePaymentToken() {
-  return crypto.randomBytes(6).toString('hex');
+  return crypto.randomBytes(16).toString('hex');
 }
 
 // Create a new booking (public with rate limiting and validation)
@@ -78,11 +77,16 @@ router.post('/', bookingLimiter, bookingValidation, async (req, res) => {
       return res.status(400).json({ error: 'Service or package ID required' });
     }
 
-    // Calculate addon costs if any
     let addonTotal = 0;
     const addonDetails = [];
 
     if (addonIds && Array.isArray(addonIds) && addonIds.length > 0) {
+      if (addonIds.length > 20) {
+        return res.status(400).json({ error: 'Too many addons selected' });
+      }
+      if (!addonIds.every(id => Number.isInteger(id) && id > 0)) {
+        return res.status(400).json({ error: 'Invalid addon ID format' });
+      }
       const vehicle = vehicleType.toLowerCase();
       const priceColumn = vehicle === 'commercial' ? 'commercial_price'
         : vehicle === 'suv' ? 'suv_price' : 'sedan_price';
@@ -106,12 +110,14 @@ router.post('/', bookingLimiter, bookingValidation, async (req, res) => {
 
     totalAmount += addonTotal;
 
-    // Calculate custom line items total
     let customItemsTotal = 0;
     const validCustomItems = [];
     if (customLineItems && Array.isArray(customLineItems)) {
+      if (customLineItems.length > 20) {
+        return res.status(400).json({ error: 'Too many custom line items' });
+      }
       for (const item of customLineItems) {
-        if (item.name && item.price > 0) {
+        if (item.name && typeof item.name === 'string' && typeof item.price === 'number' && item.price > 0 && item.price < 10000) {
           customItemsTotal += parseFloat(item.price);
           validCustomItems.push({
             name: item.name.substring(0, 200),
@@ -544,7 +550,7 @@ router.post('/:id/mark-paid', authenticateToken, idParamValidation, async (req, 
     // Generate payment token if missing (needed for balance payment link)
     let newToken = checkResult.rows[0].payment_token;
     if (!newToken) {
-      newToken = crypto.randomBytes(6).toString('hex');
+      newToken = crypto.randomBytes(16).toString('hex');
     }
 
     const result = await pool.query(

@@ -35,13 +35,22 @@ router.post('/', quoteLimiter, quoteValidation, async (req, res) => {
     const vehicle = vehicleType.toLowerCase();
     const estimatedPrice = totalEstimate || prices[level]?.[vehicle] || prices.exterior.sedan;
 
-    // Insert quote request with selected addons
+    let sanitizedAddons = [];
+    if (Array.isArray(selectedAddons)) {
+      if (selectedAddons.length > 20) {
+        return res.status(400).json({ error: 'Too many addons selected' });
+      }
+      sanitizedAddons = selectedAddons
+        .filter(a => a && typeof a === 'object' && typeof a.name === 'string')
+        .map(a => ({ name: String(a.name).substring(0, 200), price: Number(a.price) || 0 }));
+    }
+
     const result = await pool.query(
       `INSERT INTO quote_requests
        (customer_name, customer_email, customer_phone, vehicle_type, service_level, estimated_price, message, selected_addons)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING *`,
-      [customerName, customerEmail, customerPhone, vehicleType, serviceLevel, estimatedPrice, message, JSON.stringify(selectedAddons || [])]
+      [customerName, customerEmail, customerPhone, vehicleType, serviceLevel, estimatedPrice, message, JSON.stringify(sanitizedAddons)]
     );
 
     // Send notification to business owner
