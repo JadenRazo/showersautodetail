@@ -4,6 +4,10 @@ A mobile-first auto detailing booking platform. Customers can get instant quotes
 
 **Live site**: https://showersautodetail.com
 
+##Architecture
+
+![Architecture](docs/architecture.svg)
+
 ## Features
 
 - Instant quote calculator with two-question flow

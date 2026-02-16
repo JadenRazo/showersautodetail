@@ -51,7 +51,6 @@ logs/
 docker-compose.override.yml
 
 # Personal documentation
-docs/
 
 # Personal config
 CLAUDE.md
