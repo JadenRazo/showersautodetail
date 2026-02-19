@@ -4,7 +4,7 @@ A mobile-first auto detailing booking platform. Customers can get instant quotes
 
 **Live site**: https://showersautodetail.com
 
-##Architecture
+## Architecture
 
 ![Architecture](docs/architecture.svg)
 
